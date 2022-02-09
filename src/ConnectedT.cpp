@@ -12,19 +12,15 @@ class ConnectedT : public Terminal {
 
     ConnectedT(string id_, int node) : Terminal("1" + id_, 0.3, node) {} ;
 
-    void routine(){
 
-        //cout << "Connected terminals " << get_id() << " do its routine ! "<< "\n" ;
-        actualise_environ() ;
-        //actualise_traces() ;
-    }
 
-    void compute_message() {
+    void process_msg() {
         string delimiter = "," ;
         for (string a_msg : get_msg()) {
-            string msg_type ;
-            vector<string> param ;
-            msg_type, param = parse_msg(a_msg, delimiter) ;
+            vector<string> msg_parsed = parse_msg(a_msg, delimiter) ;
+            string msg_type = msg_parsed[0] ;
+            msg_parsed.erase(msg_parsed.begin()) ;
+            vector<string> param = msg_parsed ;
             if (msg_type == "delegate") {
                 delegate_function_connected_version(param[0], param[1]) ;
             }
@@ -36,19 +32,34 @@ class ConnectedT : public Terminal {
     }
 
     void delegate_function_connected_version(string m, string j) {
-        traces_mutualise() ;
+        traces_mutualise(j) ;
+        print_trace(j) ; 
         if ((get_traces()).count(j) == 1) {
             infos vec = get_traces()[j] ;
             tuple<double, string> last = get_last_traces(vec) ;
-            for (int k = stoi(j) - old(get<0>(last)) ; k < stoi(j) + old(get<0>(last)) ; k++) {
-                have_to_forward(m,j,k) ; 
+            string last_t = get<1>(last) ; 
+            int nb_co_term = 0; 
+            for (Agent* ag : get_world()) {
+                if (ag->get_id().substr(0,1) == "1") {
+                    nb_co_term ++ ;
+                }
+            }
+            int is_old = old(get<0>(last)) ;
+            if (is_old == 1) {
+                cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t *** Agent " << get_id() << " delegates to : " << last_t << "\n" ; 
+                have_to_forward(m,j,last_t) ;
+            }
+            else {
+                //TODO : add neighbours coTerminal.
+                have_to_forward(m,j,last_t) ;
             }
         }
 
     }
 
-    void have_to_forward( string m, string j, int k) {
-        id_to_terminal(to_string(k), {})->delegate_function(m,j) ; 
+    void have_to_forward( string m, string j, string k) {
+        Terminal* t = id_to_terminal(k) ;
+        t->delegate_function(m,j) ; 
     }
 
     tuple<double, string> get_last_traces(infos vec) {
@@ -63,11 +74,29 @@ class ConnectedT : public Terminal {
     }
 
     int old(double l) {
-        cout << "TODO : connectedT.old\n" ;
-        return 0 ;
+        // TODO : ici les choix sont totalement arbitraires.
+        if (l >= 4800) {
+            return 4 ;
+        }
+        if ( l >= 2400) {
+            return 3 ; 
+        }
+        if ( l >= 1200) {
+            return 2 ; 
+        }
+        return 1 ;
     }
-    void traces_mutualise() {
-        cout << "TODO : connected_terminals : traces_mutualise()\n" ;
+    void traces_mutualise(string j) {
+        for (Agent* ag : get_world()) {
+            if (ag->get_id().substr(0,1) == "1") {
+                infos traces = (ag->get_traces())[j] ;
+                infos my_traces = get_traces()[j] ;
+                for (auto t : traces) {
+                    my_traces.push_back(t) ;
+                }
+                set_traces(my_traces, j) ;
+            }
+        }
     }
 
     

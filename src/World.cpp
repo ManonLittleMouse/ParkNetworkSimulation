@@ -1,5 +1,7 @@
 #include <iostream>
 #include <vector>
+#include <sstream>
+#include <iomanip>
 
 #include "People.cpp" 
 #include "ConnectedT.cpp"
@@ -31,6 +33,8 @@ class World {
 
 
         vector<Agent*> my_world ;
+
+        
 
   
     
@@ -92,6 +96,34 @@ class World {
         void simulation(vector<Agent*> w) {
             for (Agent* ag : my_world) {
                 ag->simulation(w) ;
+            }
+        }
+
+        void generate_msg(string id, string dest, string msg) {
+            Agent* sender ;
+            Agent* receiver ;
+            for (Agent* ag : my_world) {
+                if (ag->get_id() == id) {
+                    sender = ag ;
+                }
+                if (ag->get_id() == dest) {
+                    receiver = ag ; 
+                }
+            }
+            cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t" << "^^^^^^^^^^^^ New message generated ^^^^^^^^^^^^^\n" ;
+            cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t" << "\tAgent " << id << " want to send " << msg << " to " << dest << "\n" ;
+            cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t" << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" ;
+            sender->send_msg(msg, receiver) ;
+        }
+
+        //***********************Prettyprint *******************
+
+        void print_situation() {
+            for (Agent* ag : my_world) {
+                if ((ag->get_id()).substr(0,1) == "3") {
+                cout << "Agent " << ag->get_id() << "," ;
+                ag->print_pos(ag->get_pos()) ;
+                cout << "\n" ; }
             }
         }
 

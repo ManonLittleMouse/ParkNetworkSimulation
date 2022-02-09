@@ -16,6 +16,7 @@ typedef tuple<double, string, probas> info ;
 typedef vector<info> infos ; 
 typedef map<string, infos> traces_type ;
 typedef tuple<int, int, double,double> pos ; 
+// (node init, node goal, dist done, dist not done)
 
 
 
@@ -30,7 +31,9 @@ private :
     pos my_pos ; 
     vector<Agent*> world ; 
     double scope  ;
-
+    traces_type traces ; 
+    double clock = 0 ; 
+    double dt = 0.1 ; 
 
 
 public :
@@ -51,41 +54,53 @@ public :
     vector<Agent*> get_world() {return world; }
     void set_world(vector<Agent*> w) { world = w ; }
     double get_scope() {return scope ;} 
+    traces_type virtual get_traces() {return traces ; } 
+    void virtual set_traces(infos t, string j) {}
+    double get_dt() {return dt ; }
+    double get_clock() {return clock ;}
+    void set_clock(double d) {clock = d ;} 
+
+    int virtual get_accurate_path() { return 0 ; }
+
 
     //************** MESSAGES MANAGEMENT *************
 
+    void virtual send_msg(string a_msg, Agent* dest) {}
+    // The function is called when an Agent (just a People for now) want to send a msg to another people.
+
     void receive_msg(string a_msg){
-        cout << "Agent " << get_id() << "received <<" << a_msg << ">>\n" ;
+        // Only for communication msg (= algorithm msg) 
+        cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t *** Agent " << get_id() << " received <<" << a_msg << ">>\n" ;
         msg.push_back(a_msg) ;
-        compute_msg() ;
+        process_msg() ; // When an agent receive a msg, it is directly processed.
+    }
+
+    void destination_msg(string a_msg) {
+        cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t ------------> MESSAGE <<" << a_msg << ">> IS ARRIVED AT DESTINATION: " << get_id() << "\n" ; 
+                    
     }
 
     void broadcast_msg(string a_msg, Agent* receiver) {
+    // Phyiscally send the msg to an agent.
         receiver->receive_msg(a_msg) ;
     }
 
-    void virtual compute_msg() {
+    void virtual process_msg() {
         cout << "Agent " << get_id() << " has to compute messages : \n Error : not overloading function ! \n" ;
     }
 
-    auto parse_msg(string a_msg, string delimiter) {
-        vector<string> result ;
-        size_t start = 0;
-        size_t end = 0 ;
-        string msg_type ;
-        if ((end = a_msg.find(delimiter))!= string::npos) {
-                msg_type = a_msg.substr(start,end) ;
+    vector<string> parse_msg(string a_msg, string delimiter) {
+        size_t pos = 0;
+        std::string token;
+        vector<string> res ; 
+        while ((pos = a_msg.find(delimiter)) != std::string::npos) {
+            token = a_msg.substr(0, pos);
+            res.push_back(token) ;
+            a_msg.erase(0, pos + delimiter.length());
         }
-        start = end + delimiter.length() ;
-        end = a_msg.find(delimiter, start) ;
-        vector<string> param ;
-        while (end != std::string::npos) {
-            param.push_back(a_msg.substr(start,end)) ;
-            start = end +delimiter.length() ;
-            end = a_msg.find(delimiter, start ) ;
-        }
+        res.push_back(a_msg) ; 
+        return res ;
 
-        return (msg_type, param); 
     }
 
     traces_type parse_traces(string infos) {
@@ -96,26 +111,10 @@ public :
     }
 
 
-    // Debug print 
-    void print_msg() {
-        for (string a_msg : msg) {
-            cout << a_msg  << " . " ; 
-        }
-        cout << "\n" ;
-    }
-
+    
     //************** ENVIRON MANAGEMENT **************
     
-    void initialisation(vector<Agent*> world) {
-        vector<Agent*> terminals ; 
-        for (Agent* ag : world) {
-            if (ag->get_id().substr(0,1) == "1") {
-                terminals.push_back(ag) ;
-            }
-        }
-        Agent* nearest_terminal = terminals[0] ;
-        cout << "TODO : terminer initialisation des agents" ;
-    }
+   
 
     void actualise_environ() {
         vector<Agent*> res ; 
@@ -148,9 +147,9 @@ public :
         return peoples ;
     }
 
-    Agent*  id_to_agent(string id, vector<Agent*> world) {
+    Agent*  id_to_agent(string id) {
         Agent* res ;
-        for (Agent* ag : world) {
+        for (Agent* ag : get_world()) {
             if (ag->get_id()  == id) {
                 res = ag ; 
             }
@@ -168,7 +167,7 @@ public :
     }
 
      bool virtual near_to(pos a, pos b, double s1, double s2) {
-        // test if a people a is around a terminal b
+        // test if a people a is and a terminal b
         int a1 = get<0>(a);
         int a2 = get<1>(a);
         double a3 = get<2>(a);
@@ -200,12 +199,23 @@ public :
         sleep(i);
     }
 
+    void actualise_time() {
+        double time = get_clock() + get_dt() ;
+        set_clock(time) ; 
+    }
+
     //******************* Simulation *****************
 
     void virtual simulation(vector<Agent*> world) {}
 
     // ****************** Prettyprint **************
 
+    void print_msg() {
+        for (string a_msg : msg) {
+            cout << a_msg  << " . " ; 
+        }
+        cout << "\n" ;
+    }
     void print_pos(pos t) {
         int a = get<0>(t) ;
         int b = get<1>(t) ;
@@ -236,6 +246,14 @@ public :
             }
             cout << "\n" ;
         }
+    }
+
+    void print_parse_msg(vector<string> v) {
+        cout << "Parsing message : " ;
+        for (string s : v) {
+            cout << s << " " ;
+        }
+        cout << "\n" ;
     }
     
 };

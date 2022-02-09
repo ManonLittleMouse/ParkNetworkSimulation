@@ -79,8 +79,8 @@ class Map {
         graph.push_back({ {47,15}, {51,4},{56,15},{50,10} }) ;
         graph.push_back({ {46,10}, {47,10} ,{50,7} }) ;
         graph.push_back({ {49,7}, {48,10},{54,22} }) ;
-        graph.push_back({ {52,2}, {52,3},{48,4} }) ;
-        graph.push_back({ {53,1}, {51,2},{51,3} }) ;
+        graph.push_back({ {52,2}, {48,4} }) ;
+        graph.push_back({ {53,1}, {51,2} }) ;
         graph.push_back({ {52,1}}) ;
         graph.push_back({ {55,12}, {50,22},{57,65} }) ;
         graph.push_back({ {54,12} }) ;

@@ -11,12 +11,9 @@ class UnconnectedT : public Terminal{
 
     UnconnectedT(string id_, int node) : Terminal("2" + id_, 0.2, node) {} ;
 
-    void routine() {
-        actualise_environ() ;
-        //actualise_traces() ; 
-    }
 
-    void compute_message() {
+
+    void process_msg() {
         string delimiter = "," ;
         for (string a_msg : get_msg()) {
             string msg_type ;

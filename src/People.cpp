@@ -10,14 +10,14 @@ class People : public Agent {
     vector<int> path ; 
     vector<double> path_distances ; 
     int step = 0 ; 
-    double delta_d = 0.1 ; 
+    vector<tuple<string, Agent*>> msg_to_send ; 
+    vector<vector<string>> msg_to_forward ; 
     
     public :
+
+        //***************************** Initialisation ******************************
         People(string id_, vector<int> path_, vector<double> path_d_) : Agent("3" + id_, 0.1 , pos(path_[0], path_[1], 0, path_d_[0])), path(path_), path_distances(path_d_){
-            if (path_distances.size() != path.size() - 1) {
-                cout << "Error in path generation : distances are not enought or too much\n" ;
-                exit(42) ;
-            }
+
             cout << "New People creation : \n" ;
             cout << "|\t local id: " << id_ << "\n" ;
             cout << "|\t global id: " << get_id() << "\n" ;
@@ -31,26 +31,93 @@ class People : public Agent {
             print_pos(get_pos()) ;
             cout << "\n" ;
             cout << "|\t scope: "  << to_string(get_scope()) << "\n" ;
+
+            if (path_distances.size() != path.size() - 1) {
+                cout << "Error in path generation : distances (" 
+                << path_distances.size()<< ", " << path.size() << ") are not enought or too much\n" ;
+                exit(42) ;
+            }
         } ;
+        //**********************************************************************
+        //******************************* Getter/Setter *************************
+        vector<int> get_path() { return path ;}
 
+        int get_accurate_path() {return path[step] ; }
 
-        
+        //***********************************************************************
+        //************************* Messages management (= Algorithm) *************************
 
         void send_msg(string a_msg, Agent* dest) {
-            cout << "People " << get_id() << " wants to send the message << " << a_msg << " to " << dest->get_id() << " ! \n" ;
             actualise_environ() ;
-            if (not(get_terminals().empty())){
+            bool sended = false ; 
+            for (Agent* a : get_environ()) {
+                if (a == dest) {
+                    dest->destination_msg(a_msg) ; 
+                    sended = true ; 
+                }
+            }
+            if (sended == false && not(get_terminals().empty())){
                 for (Agent* pj : get_terminals()) {
+                    cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t --- Agent "<< get_id() << " send <" << "delegate," + a_msg + "," + dest->get_id() << "> to " << pj->get_id() << "\n" ; 
                     broadcast_msg("delegate," + a_msg + "," + dest->get_id() , pj) ; 
                 }
             }
             else {
-                sleep(2) ; 
-                send_msg(a_msg, dest) ;
+                if (not(sended)) {
+                    tuple<string, Agent*> t(a_msg, dest) ; 
+                    msg_to_send.push_back(t) ;
+                }
+
             }
         }
 
-        void compute_msg() {
+
+
+        void forward(vector<string> param) {
+            if (param.size() != 5) {
+                cout << "Error : People.forward(param) : Too many/not enought parameters ! \n" ;
+                exit(42) ;
+            }
+            actualise_environ() ;
+            if (get_environ().empty()) {
+                msg_to_forward.push_back(param) ; 
+            }
+            else {
+                string a_msg = param[0] ;
+                string dest = param[1] ;
+                double k = stod(param[2]) ;
+                string t = param[3] ;
+                string infos = param[4] ;
+                bool forwarded = false ;
+                for (auto a : get_environ()) {
+                    if (a->get_id() == dest) {
+                        id_to_agent(dest)->destination_msg(a_msg) ; 
+                        forwarded = true ; 
+                    }
+                }
+                if(not(forwarded) && not(get_terminals().empty()) && not(get_terminals().size() == 1 && ((get_terminals()[0])->get_id() == t))) {
+                    for (Agent* x : get_terminals()) {
+                        broadcast_msg("delegate," + a_msg + "," + dest , x) ;
+                    }
+                }
+                else{
+                    if (not(forwarded)) {
+                    for (Agent* x : get_peoples()) {
+                        auto k_aux = evaluate_traces(dest, parse_traces(infos), x->get_id()) ;
+                        if (k_aux > k) {
+                            broadcast_msg("forward," + a_msg + "," + to_string(k_aux) + "," + t + "," + infos , x) ;
+                            forwarded = true ;
+                        }
+                    }
+                    if (not(forwarded)) {
+                        msg_to_forward.push_back(param) ; 
+                    }
+                    }
+                }
+            }
+        }
+
+        void process_msg() {
             string delimiter = "," ;
             for (string a_msg : get_msg()) {
                 string msg_type ;
@@ -67,62 +134,26 @@ class People : public Agent {
             }
         }
 
-        void forward(vector<string> param) {
-            if (param.size() != 5) {
-                cout << "Error : People.forward(param) : Too many/not enought parameters ! \n" ;
-                exit(42) ;
-            }
-            actualise_environ() ;
-            if (get_environ().empty()) {
-                sleep_for(2);
-                forward(param) ;
-            }
-            else {
-                string a_msg = param[0] ;
-                string dest = param[1] ;
-                double k = stod(param[2]) ;
-                string t = param[3] ;
-                string infos = param[4] ;
-                if(not(get_terminals().empty()) && not(get_terminals().size() == 1 && ((get_terminals()[0])->get_id() == t))) {
-                    for (Agent* x : get_terminals()) {
-                        broadcast_msg("delegate," + a_msg + "," + dest , x) ;
-                    }
-                }
-                else{
-                    bool forwarded = false ;
-                    for (Agent* x : get_peoples()) {
-                        auto k_aux = evaluate_traces(dest, parse_traces(infos), x->get_id()) ;
-                        if (k_aux > k) {
-                            broadcast_msg("forward," + a_msg + "," + to_string(k_aux) + "," + t + "," + infos , x) ;
-                            forwarded = true ;
-                        }
-                    }
-                    if (not(forwarded)) {
-                        sleep(2) ;
-                        forward(param) ;
-                    }
-                }
-            }
-        }
-
-        //********************* Simulation *************************
+        //****************************************************************
+        //*************************** Simulation *************************
 
         void simulation(vector<Agent*> w) {
+            actualise_time() ; 
+            //************ People deplacement ***********************
             pos p = get_pos() ;
             int current_node = get<0>(p);
             int next_node = get<1>(p) ; 
-            double new_dist = (get<2>(p)) + delta_d ;
-            double new_rest = (get<3>(p)) - delta_d ; 
-            cout << "People : " << get_id() << " : " << to_string(new_dist) << "," << to_string(new_rest) << "," << to_string(path_distances[step]) << "\n" ;
-             if (abs(new_dist - path_distances[step]) <= 0.01) {
-                 if (new_rest >= 0.01) {
-                     cout << "ERROR : People.simulation() : wrong computing of distances\n" ; 
-                     exit(42) ; 
-                 }
+            double new_dist = (get<2>(p)) + get_dt();
+            double new_rest = (get<3>(p)) - get_dt(); 
+            if (abs(new_dist - path_distances[step]) <= 0.01) {
+                if (new_rest >= 0.01) {
+                    cout << "ERROR : People.simulation() : wrong computing of distances\n" ; 
+                    exit(42) ; 
+                }
                 current_node = get<1>(get_pos()) ; 
                 new_dist = 0 ; 
                 step += 1 ;
-                if (step >= path.size()) {
+                if (step >= path.size() - 1) {
                     cout << "ERROR : People.simulation() : People ends its paths." ;
                     exit(42) ;
                 }
@@ -132,66 +163,63 @@ class People : public Agent {
                 
             }
 
+            if (new_rest < 0 || new_dist < 0 ) {
+                cout << "Error in computing distances of people ! \n";
+                exit(42) ;
+            }
+
             set_pos(pos(current_node, next_node, new_dist, new_rest)) ;
             set_world(w) ; 
-            actualise_environ() ; 
-
+            routine() ; // People send/forward messages if they have messages in their buffers. 
+            
         }
 
 
-    bool near_to(pos a, pos b, double s1, double s2) {
-        // test if a people a is around a terminal b
+     bool near_to(pos a, pos b, double s1, double s2) {
         int a1 = get<0>(a);
         int a2 = get<1>(a);
         double a3 = get<2>(a);
-        double a4 = get<3>(a) ; 
+        double a4 = get<3>(a) ;         
         int b1 = get<0>(b);
         int b2 = get<1>(b);
-        int b3 = get<2>(b);
-        int b4 = get<3>(b) ; 
-
+        double b3 = get<2>(b);
+        double b4 = get<3>(b) ; 
         
         if(a1 == b1)  {
-            if (a3 <= s1 + s2) {
-                return true ;
+            if (a2 == b2 || a2 == 0) {
+                if (abs(b3-a3) <= s1 + s2) {return true ;}
+                else {return false ;}
             }
             else {
-                return false ;
+                if (abs(b3 + a3) <= s1 + s2) {return true ; }
+                else {return false ;}
             }
         }
-        if(a2 == b1) {
-            if (a4 <= s1 + s2){
-                return true ;
+        if(b2 == a1) {
+            if (b1 == a2 || a2 == 0) {
+                if (abs(b4 - a3)  <= s1 + s2 ) {return true ;}
+                else {return false ;}
             }
-            else {
-                return false ;
-            }
+            else {return false ;}
 
         }
-        //test if 2 peoples are clos 
-        else {
-            if (a1 == b1 && a2 == b2) { // they are on the same path
-                if (abs(a3 - b3) <= s1 + s2) {
-                    return true ;
-                }
-                else {return false ;}
-            }
-            if (a1 == b2 && a2 == b1) { // They cross over the same path
-                if (abs (a4 - b3) <= s1 + s2) {
-                    return true ;
-                }
-
-                else {return false ;}
-            }
-            if (a1 == b1) { // They are just near to the same node
-                if (a3 + b3 <= s1 + s2) {
-                    return true ;
-                }
-                else {return false ;}
-            }
-            return false ; // Other cases are wrong
-        }
+        return false ;
     }
+   
+   void routine() {
+       vector<tuple<string, Agent*>> send_aux = msg_to_send ; 
+       msg_to_send = {} ;
+       for (auto t : send_aux) {
+           send_msg(get<0>(t), get<1>(t)) ;
+       }
+
+       vector<vector<string>> forward_aux = msg_to_forward ; 
+       msg_to_forward = {} ;
+       for (auto t : forward_aux) {
+            forward(t) ; 
+       }
+
+   }
 
         
        
