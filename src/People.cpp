@@ -12,12 +12,14 @@ class People : public Agent {
     int step = 0 ; 
     vector<tuple<string, Agent*>> msg_to_send ; 
     vector<vector<string>> msg_to_forward ; 
+    double delta_d = 0.1 ; 
     
     public :
 
         //***************************** Initialisation ******************************
-        People(string id_, vector<int> path_, vector<double> path_d_) : Agent("3" + id_, 0.1 , pos(path_[0], path_[1], 0, path_d_[0])), path(path_), path_distances(path_d_){
+        People(string id_, vector<int> path_, vector<double> path_d_, double c) : Agent("3" + id_, 0.1 , pos(path_[0], path_[1], 0, path_d_[0])), path(path_), path_distances(path_d_){
 
+            set_clock(c) ; 
             cout << "New People creation : \n" ;
             cout << "|\t local id: " << id_ << "\n" ;
             cout << "|\t global id: " << get_id() << "\n" ;
@@ -40,19 +42,82 @@ class People : public Agent {
         } ;
         //**********************************************************************
         //******************************* Getter/Setter *************************
-        vector<int> get_path() { return path ;}
 
+        vector<int> get_path() { return path ;}
         int get_accurate_path() {return path[step] ; }
 
         //***********************************************************************
-        //************************* Messages management (= Algorithm) *************************
+        //*************************** Simulation *************************
+        void simulation(vector<Agent*> w, float c) {
+            set_clock(c) ; 
+            set_world(w) ; 
+            actualise_environ() ; 
+            //************ People deplacement ***********************
+            pos p = get_pos() ;
+            int current_node = get<0>(p);
+            int next_node = get<1>(p) ; 
+            double new_dist = (get<2>(p)) + delta_d;
+            double new_rest = (get<3>(p)) - delta_d; 
+            if (abs(new_dist - path_distances[step]) <= 0.01) {
+                if (new_rest >= 0.01) {
+                    cout << "ERROR : People.simulation() : wrong computing of distances\n" ; 
+                    exit(42) ; 
+                }
+                current_node = get<1>(get_pos()) ; 
+                new_dist = 0 ; 
+                step += 1 ;
+                if (step >= path.size() - 1) { // Condition of end of path
+                    cout << " ------------- /!  People " << get_id() << "end its path ! \n" ;
+                    set_is_in_park(false) ; 
+                }
+                next_node = path[step+1] ; 
+                new_rest = path_distances[step] ;
+                cout << "People " << get_id() << " has reach a new step: " << to_string(current_node) << "\n" ;
+                
+            }
+
+            if (new_rest < 0 || new_dist < 0 ) {
+                cout << "Error in computing distances of people ! \n";
+                exit(42) ;
+            }
+
+            set_pos(pos(current_node, next_node, new_dist, new_rest)) ;
+            //*********************************************
+            routine() ; // People send/forward messages if they have messages in their buffers. 
+        }
+
+        void routine() {
+            flooding() ; 
+            // vector<tuple<string, Agent*>> send_aux = msg_to_send ; 
+            // msg_to_send = {} ;
+            // for (auto t : send_aux) {
+            //     send_msg(get<0>(t), get<1>(t)) ;
+            // }
+
+            // vector<vector<string>> forward_aux = msg_to_forward ; 
+            // msg_to_forward = {} ;
+            // for (auto t : forward_aux) {
+            //     forward(t) ; 
+            // }
+        }
+        void actualise_environ() {
+            vector<Agent*> res ; 
+            for (Agent* ag : get_world()) {
+                if ((ag->get_id() != get_id()) && near_to(ag->get_pos() , get_pos(), ag->get_scope(), get_scope())){
+                    res.push_back(ag) ; 
+                }
+            }
+            set_environ(res) ;
+            print_environnement(res) ; 
+        }
+    //************************* Messages management (= Algorithm) *************************
 
         void send_msg(string a_msg, Agent* dest) {
             actualise_environ() ;
             bool sended = false ; 
             for (Agent* a : get_environ()) {
                 if (a == dest) {
-                    dest->destination_msg(a_msg) ; 
+                    dest->delivery_msg(a_msg) ; 
                     sended = true ; 
                 }
             }
@@ -91,7 +156,7 @@ class People : public Agent {
                 bool forwarded = false ;
                 for (auto a : get_environ()) {
                     if (a->get_id() == dest) {
-                        id_to_agent(dest)->destination_msg(a_msg) ; 
+                        id_to_agent(dest)->delivery_msg(a_msg) ; 
                         forwarded = true ; 
                     }
                 }
@@ -135,45 +200,11 @@ class People : public Agent {
         }
 
         //****************************************************************
-        //*************************** Simulation *************************
 
-        void simulation(vector<Agent*> w) {
-            actualise_time() ; 
-            //************ People deplacement ***********************
-            pos p = get_pos() ;
-            int current_node = get<0>(p);
-            int next_node = get<1>(p) ; 
-            double new_dist = (get<2>(p)) + get_dt();
-            double new_rest = (get<3>(p)) - get_dt(); 
-            if (abs(new_dist - path_distances[step]) <= 0.01) {
-                if (new_rest >= 0.01) {
-                    cout << "ERROR : People.simulation() : wrong computing of distances\n" ; 
-                    exit(42) ; 
-                }
-                current_node = get<1>(get_pos()) ; 
-                new_dist = 0 ; 
-                step += 1 ;
-                if (step >= path.size() - 1) {
-                    cout << "ERROR : People.simulation() : People ends its paths." ;
-                    exit(42) ;
-                }
-                next_node = path[step+1] ; 
-                new_rest = path_distances[step] ;
-                cout << "People " << get_id() << " has reach a new step: " << to_string(current_node) << "\n" ;
-                
-            }
 
-            if (new_rest < 0 || new_dist < 0 ) {
-                cout << "Error in computing distances of people ! \n";
-                exit(42) ;
-            }
 
-            set_pos(pos(current_node, next_node, new_dist, new_rest)) ;
-            set_world(w) ; 
-            routine() ; // People send/forward messages if they have messages in their buffers. 
-            
-        }
 
+    //Calcul des voisin proches : 
 
      bool near_to(pos a, pos b, double s1, double s2) {
         int a1 = get<0>(a);
@@ -206,20 +237,9 @@ class People : public Agent {
         return false ;
     }
    
-   void routine() {
-       vector<tuple<string, Agent*>> send_aux = msg_to_send ; 
-       msg_to_send = {} ;
-       for (auto t : send_aux) {
-           send_msg(get<0>(t), get<1>(t)) ;
-       }
 
-       vector<vector<string>> forward_aux = msg_to_forward ; 
-       msg_to_forward = {} ;
-       for (auto t : forward_aux) {
-            forward(t) ; 
-       }
 
-   }
+
 
         
        

@@ -136,8 +136,13 @@ class Map {
         int con_terminals_size = connected_terminals.size() ;
         int begin = rand()%con_terminals_size  ;
         res.push_back(connected_terminals[begin]) ; 
+        //Generating a path of 10 steps min
         for (int i = 0 ; i < 30 ; i++) {
             res.push_back(choose_next(res.back())) ;
+        }
+        // Look aleatory for exit : 
+        while(not(is_a_con_terminals(res.back()))) {
+            res.push_back(choose_next(res.back())) ; 
         }
         return res ;
 
@@ -150,6 +155,7 @@ class Map {
         }
         arcs nexts = graph[i - 1] ;
         int nexts_size = nexts.size() ;
+        // TODO : enlever les aller-retour
         int next_i = rand()%nexts_size ;
         return graph[i-1][next_i][0] ;
     }

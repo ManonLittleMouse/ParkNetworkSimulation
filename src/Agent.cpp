@@ -24,17 +24,32 @@ class Agent
 {
 private :
 
+    // Buffers de messages : 
     vector<string> msg ;
-    string id ;
-    vector<Agent*> environ ;
-    probas nearest_terminal_path ; 
-    pos my_pos ; 
-    vector<Agent*> world ; 
-    double scope  ;
-    traces_type traces ; 
-    double clock = 0 ; 
-    double dt = 0.1 ; 
+    vector<tuple<string, Agent*, float>> msg_flood  ; 
+    vector<tuple<string, Agent*, float>> msg_flood_v2  ; 
 
+    // configs : 
+    string id ; 
+    pos my_pos ; 
+    double scope  ;
+
+    // Infos about world 
+    vector<Agent*> world ;
+    float clock ; 
+    vector<Agent*> environ ;
+    traces_type traces ; 
+    bool is_in_park = true ; // become false when the agent is no more in the parK. Deleted after a new step of simulation.
+
+    // statistics
+    vector<string> delivered_msg ; 
+    int nb_messages_receive = 0 ; 
+
+    vector<string> delivered_msg_flood ; 
+    int nb_messages_receive_flood = 0 ; 
+
+    vector<string> delivered_msg_flood_v2 ; 
+    int nb_messages_receive_flood_v2 = 0 ; 
 
 public :
 
@@ -45,50 +60,194 @@ public :
 
     // ************ GETTER/SETTER *****************
 
+    //Configs 
     string get_id() {return id ;}
+    double get_scope() {return scope ;} 
+
+    // World managements 
     vector<Agent*> get_environ() {return environ ;}
     void set_environ(vector<Agent*> new_environ) {environ = new_environ ;}
-    vector<string> get_msg() {return msg ;}
     void set_pos(pos t){my_pos = t ;}
     pos get_pos(){return my_pos ;}
     vector<Agent*> get_world() {return world; }
     void set_world(vector<Agent*> w) { world = w ; }
-    double get_scope() {return scope ;} 
+    void set_clock(float c) {clock = c ;}
+    float get_clock() {return clock ; }
     traces_type virtual get_traces() {return traces ; } 
     void virtual set_traces(infos t, string j) {}
-    double get_dt() {return dt ; }
-    double get_clock() {return clock ;}
-    void set_clock(double d) {clock = d ;} 
+    void set_is_in_park(bool u) {is_in_park = u ; }
+    bool get_is_in_park() {return is_in_park ; }
+
+    //msg managemnts 
+    vector<string> get_msg() {return msg ;}
+    vector<tuple<string, Agent*, float >> get_msg_flood() {return msg_flood ; }
+
+    // statistics variables
+    int get_nb_m_received() {return nb_messages_receive;}
+    int get_nb_m_received_flood() {return nb_messages_receive_flood;}
+    int get_nb_m_received_flood_v2() {return nb_messages_receive_flood_v2;}
+    vector<string> get_delivered_msg() {return delivered_msg ;}
 
     int virtual get_accurate_path() { return 0 ; }
 
 
     //************** MESSAGES MANAGEMENT *************
 
-    void virtual send_msg(string a_msg, Agent* dest) {}
-    // The function is called when an Agent (just a People for now) want to send a msg to another people.
+    void send(string a_msg, Agent* dest, float date) {
+        //send_msg(a_msg, dest) ; 
+        send_msg_by_flooding(a_msg, dest, date) ; 
+        send_msg_by_flooding_v2(a_msg, dest, date) ; 
+    }
 
+
+    // FLOODING V1 ( with terminals ) 
+    void send_msg_by_flooding(string a_msg, Agent* dest, float date ) {
+        tuple<string, Agent* , float > t(a_msg, dest, date) ; 
+        msg_flood.push_back(t) ; 
+    }
+    int flooding() {   
+        for(tuple<string, Agent*, float> t :msg_flood) {
+            Agent* dest = get<1>(t) ; 
+            for(Agent* ag : get_environ()) {
+                if (ag == dest){
+                    dest->delivery_msg_flood(get<0>(t)) ; 
+                    return 0 ; 
+                }
+                else {
+                    if (!(ag->is_here(t))) {
+                        cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t flooding :  <<" << get<0>(t) << "," << get<1>(t)->get_id() << " >> from " << get_id() << " to " << ag->get_id()  << "\n" ;
+                        ag->msg_flood.push_back(t) ; 
+                    }
+                }
+            }
+        }
+        return 0 ; 
+    }
+    bool is_here(tuple<string, Agent*, float> t) {
+        bool res = false ; 
+            for (auto t2 : msg_flood) {
+                if (t2 == t) {
+                    res = true; 
+                }
+            }
+        return res ;
+    }
+    void clean_old_msg() {
+        vector<tuple<string, Agent*, float>> aux_msgs ; 
+        for (tuple<string, Agent*, float> t : msg_flood) {
+            float date = get<2>(t) ; 
+            if (date > clock - 86400 ) { // Les messages sont supprimés au bout d'une journée. 
+                aux_msgs.push_back(t) ; 
+            }
+        }
+        msg_flood = aux_msgs ; 
+    }
+    void delivery_msg_flood(string a_msg) {
+        bool already_delireved = false ; 
+        for (string m : delivered_msg_flood) {
+            if (m == a_msg) {
+                already_delireved = true ; 
+            }
+        }
+        if (!already_delireved){
+            nb_messages_receive_flood++ ; 
+            delivered_msg_flood.push_back(a_msg) ; 
+            cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t ------------> MESSAGE <<" << a_msg << ">> IS ARRIVED AT DESTINATION (by flooding w/ terminals): " << get_id() << "\n" ; 
+        }  
+    }
+
+    // FLOODING v2 (only people) ; 
+
+    void send_msg_by_flooding_v2(string a_msg, Agent* dest, float date ) {
+        tuple<string, Agent* , float > t(a_msg, dest, date) ; 
+        msg_flood_v2.push_back(t) ; 
+    }
+    int flooding_v2() {  
+        for(tuple<string, Agent*, float> t :msg_flood_v2) {
+            Agent* dest = get<1>(t) ; 
+            for(Agent* ag : get_environ()) {
+                if (ag->get_id().substr(0,1) == "3") {
+                    if (ag == dest){
+                        dest->delivery_msg_flood_v2(get<0>(t)) ; 
+                        return 0 ; 
+                    }
+                    else {
+                        if (!(ag->is_here_v2(t))) {
+                            cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t flooding V2 :  <<" << get<0>(t) << "," << get<1>(t)->get_id() << " >> from " << get_id() << " to " << ag->get_id()  << "\n" ;
+                            ag->msg_flood_v2.push_back(t) ; 
+                        }
+                    }
+                }
+            }
+        }
+        return 0 ; 
+    }
+    void clean_old_msg_v2() {
+        vector<tuple<string, Agent*, float>> aux_msgs ; 
+        for (tuple<string, Agent*, float> t : msg_flood_v2) {
+            float date = get<2>(t) ; 
+            if (date > clock - 86400 ) { // Les messages sont supprimés au bout d'une journée. 
+                aux_msgs.push_back(t) ; 
+            }
+        }
+        msg_flood_v2 = aux_msgs ; 
+    }
+    bool is_here_v2(tuple<string, Agent*, float> t) {
+        bool res = false ; 
+            for (auto t2 : msg_flood_v2) {
+                if (t2 == t) {
+                    res = true; 
+                }
+            }
+        return res ;
+    }
+    void delivery_msg_flood_v2(string a_msg) {
+        bool already_delireved = false ; 
+        for (string m : delivered_msg_flood_v2) {
+            if (m == a_msg) {
+                already_delireved = true ; 
+            }
+        }
+        if (!already_delireved){
+            nb_messages_receive_flood_v2++ ; 
+            delivered_msg_flood_v2.push_back(a_msg) ; 
+            cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t ------------> MESSAGE <<" << a_msg << ">> IS ARRIVED AT DESTINATION (by flooding v2): " << get_id() << "\n" ; 
+        }  
+    }
+    
+    // OUR ALGORITHMS 
+    // void virtual send_msg(string a_msg, Agent* dest) {} // The function is called when an Agent (just a People for now) want to send a msg to another people.
+
+  
+    void virtual send_msg(string a_msg, Agent* dest) {}
     void receive_msg(string a_msg){
         // Only for communication msg (= algorithm msg) 
         cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t *** Agent " << get_id() << " received <<" << a_msg << ">>\n" ;
         msg.push_back(a_msg) ;
         process_msg() ; // When an agent receive a msg, it is directly processed.
-    }
 
-    void destination_msg(string a_msg) {
-        cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t ------------> MESSAGE <<" << a_msg << ">> IS ARRIVED AT DESTINATION: " << get_id() << "\n" ; 
-                    
+  
     }
-
+    void delivery_msg(string a_msg) {
+        bool already_delireved = false ; 
+        for (string m : delivered_msg) {
+            if (m == a_msg) {
+                already_delireved = true ; 
+            }
+        }
+        if (!already_delireved){
+            nb_messages_receive++ ; 
+            delivered_msg.push_back(a_msg) ; 
+            cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t ------------> MESSAGE <<" << a_msg << ">> IS ARRIVED AT DESTINATION: " << get_id() << "\n" ; 
+        }           
+    }
     void broadcast_msg(string a_msg, Agent* receiver) {
-    // Phyiscally send the msg to an agent.
+    //Phyiscally send the msg to an agent.
         receiver->receive_msg(a_msg) ;
     }
-
     void virtual process_msg() {
-        cout << "Agent " << get_id() << " has to compute messages : \n Error : not overloading function ! \n" ;
+        cout << "Agent " << get_id() << " has to compute messages : \n process : not overloading function ! \n" ;
     }
-
     vector<string> parse_msg(string a_msg, string delimiter) {
         size_t pos = 0;
         std::string token;
@@ -102,7 +261,6 @@ public :
         return res ;
 
     }
-
     traces_type parse_traces(string infos) {
         cout << "todo : parse_infos" ;
         traces_type res ; 
@@ -116,7 +274,7 @@ public :
     
    
 
-    void actualise_environ() {
+    void virtual actualise_environ() {
         vector<Agent*> res ; 
         for (Agent* ag : get_world()) {
             if ((ag->get_id() != get_id()) && near_to(ag->get_pos() , get_pos(), ag->get_scope(), get_scope())){
@@ -124,7 +282,6 @@ public :
             }
         }
         set_environ(res) ; 
-        print_environnement(get_environ()) ;
     }
 
     vector<Agent*> get_terminals() {
@@ -162,7 +319,7 @@ public :
     //**************** TRACE MANAGEMENT ******************
 
     double virtual evaluate_traces(string j, traces_type infos, string x) {
-        cout << "TODO : evaluate traces \n" ;
+        // cout << "TODO : evaluate traces \n" ;
         return 0 ; 
     }
 
@@ -194,19 +351,10 @@ public :
         return false ;
     }
 
-    //****************** TIME ********************
-    void sleep_for(int i) {
-        sleep(i);
-    }
-
-    void actualise_time() {
-        double time = get_clock() + get_dt() ;
-        set_clock(time) ; 
-    }
 
     //******************* Simulation *****************
 
-    void virtual simulation(vector<Agent*> world) {}
+    void virtual simulation(vector<Agent*> world, float clock) {}
 
     // ****************** Prettyprint **************
 
@@ -241,7 +389,7 @@ public :
             cout << "\tAgent " << get_id()<<"(node:"<< to_string(get<0>(get_pos()))<< " + " << to_string(get<2>(get_pos())) << ")" << " has company: " ;
             for (Agent* ag : e) {
                 cout << ag->get_id() ;
-                print_pos(ag->get_pos()) ;
+                //print_pos(ag->get_pos()) ;
                 cout  << " " ;
             }
             cout << "\n" ;
@@ -256,6 +404,16 @@ public :
         cout << "\n" ;
     }
     
+    void print_msg_flood() {
+        cout << " msg_flood of " << get_id()  << ": " ; 
+        for (auto t : msg_flood) {
+            string a = get<0>(t) ; 
+            Agent* b = get<1>(t) ; 
+            float c = get<2>(t) ; 
+            cout << "(" << a << "," << b->get_id() << "," << to_string(c) << ") " ; 
+        }
+        cout << "\n" ; 
+    }
 };
   
 #endif

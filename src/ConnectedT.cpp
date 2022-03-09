@@ -10,8 +10,29 @@ class ConnectedT : public Terminal {
 
     public :
 
-    ConnectedT(string id_, int node) : Terminal("1" + id_, 0.3, node) {} ;
+     ConnectedT(string id_, int node) : Terminal("1" + id_, 0.3, node) {} ;
 
+     void routine() {
+        actualise_environ() ; 
+        flooding() ; 
+      }
+
+    void actualise_environ() {
+        vector<Agent*> res ; 
+        for (Agent* ag : get_world()) {
+            if (ag->get_id().substr(0,1) == "1" && (ag->get_id() != get_id())) {
+                res.push_back(ag) ; 
+            }
+            else { 
+                if ((ag->get_id() != get_id()) && near_to(ag->get_pos() , get_pos(), ag->get_scope(), get_scope())){
+                    res.push_back(ag) ; 
+                }
+            }
+
+        }
+        set_environ(res) ; 
+        //print_environnement(get_environ()) ;
+    }
 
 
     void process_msg() {
@@ -34,7 +55,7 @@ class ConnectedT : public Terminal {
     void delegate_function_connected_version(string m, string j) {
         traces_mutualise(j) ;
         print_trace(j) ; 
-        if ((get_traces()).count(j) == 1) {
+        if ((get_traces()).count(j) >= 1) {
             infos vec = get_traces()[j] ;
             tuple<double, string> last = get_last_traces(vec) ;
             string last_t = get<1>(last) ; 
@@ -45,12 +66,12 @@ class ConnectedT : public Terminal {
                 }
             }
             int is_old = old(get<0>(last)) ;
-            if (is_old == 1) {
+            if (is_old >= 1) {
                 cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t *** Agent " << get_id() << " delegates to : " << last_t << "\n" ; 
                 have_to_forward(m,j,last_t) ;
             }
+            //TODO : add neighbours coTerminal.
             else {
-                //TODO : add neighbours coTerminal.
                 have_to_forward(m,j,last_t) ;
             }
         }
@@ -74,7 +95,7 @@ class ConnectedT : public Terminal {
     }
 
     int old(double l) {
-        // TODO : ici les choix sont totalement arbitraires.
+     //   TODO : ici les choix sont totalement arbitraires.
         if (l >= 4800) {
             return 4 ;
         }
