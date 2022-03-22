@@ -31,6 +31,7 @@ class Terminal : public Agent{
 
     void virtual routine() {
         actualise_environ() ;
+        print_flood() ; 
         flooding() ; 
         //actualise_traces() ; 
         //delegate() ; 

@@ -42,8 +42,10 @@ class World {
         int nb_messages_send = 0 ; 
 
         World(int initials_peoples) {
+            cout << "World initialisation.\n" ;
             set_terminals() ; 
             add_people(initials_peoples) ; 
+            cout << "World initialisized. \n" ;
         } ;
 
         double get_clock(){return clock ; }
@@ -53,12 +55,10 @@ class World {
             tmp_id_people += 1 ;
             return to_string(tmp_id_people) ;
         }
-
         string id_UnCon(){
             tmp_id_UnCon += 1 ;
             return to_string(tmp_id_UnCon) ;
         }
-
         string id_Con(){
             tmp_id_Con += 1 ;
             return to_string(tmp_id_Con) ;
@@ -75,19 +75,33 @@ class World {
             for (int k = 0 ; k < i ; k++ ) {
                 vector<int> path = my_map->choose_path() ;
                 vector<double> path_d = my_map->compute_path_distance(path) ;
-                my_world.push_back(new People(id_people(), path, path_d, get_clock())) ;
+                
+                People* a_people = new People(id_people(), path, path_d, get_clock()) ;
+                my_world.push_back(a_people) ;
             };
             cout << "-------------------\n" ;
 
         }
 
         void set_terminals() {
+            cout << "Connected terminals : \n" ;
             for (int node : my_map->get_connected_terminals()) {
-                my_world.push_back(new ConnectedT(id_Con(), node)) ;
+                string id = id_Con() ; 
+                ConnectedT* conT = new ConnectedT(id, node) ; 
+                my_world.push_back(conT) ;
+                cout << " (" << to_string(node)<< ", " << id << ") " ; 
+                conT->print_pos(conT->get_pos()) ; 
             };
+            cout << "\n Unconnected terminals : \n" ; 
             for (int node : my_map->get_unconnected_terminasl()) {
-                my_world.push_back(new UnconnectedT(id_UnCon(),node)) ;
+                string id = id_UnCon() ; 
+                UnconnectedT* unconT = new UnconnectedT(id,node) ; 
+                my_world.push_back(unconT) ;
+                cout << " (" << to_string(node)<< ", " << id << ") " ; 
+                unconT->print_pos(unconT->get_pos()) ; 
+                
             };
+            cout << "\n" ; 
         }
 
 
@@ -146,13 +160,13 @@ class World {
             }
             else {
             
-            srand(time(NULL)+1);
+            srand((unsigned)time(NULL));
             int alea1 = (rand()+1)%nb_people ;
 
             
             int alea2 ; 
             // We genereate a second aleatory int which is different from alea1 
-            srand(time(NULL)+1); 
+            srand((unsigned)time(NULL)); 
             alea2 = (rand()+1)%nb_people;
             if (alea2 == alea1) {
                 alea2 = (alea2 + 1) % nb_people ; 
@@ -160,7 +174,7 @@ class World {
 
             string id1 = peoples[alea1]->get_id() ; 
             string id2 = peoples[alea2]->get_id() ;
-            string mes = "<a message to " + id2 + " from " + id1 + ">"; 
+            string mes = "<a message " +  to_string(nb_messages_send) + " to " +   id2 + " from " + id1 + ">"; 
 
             generate_msg(id1,id2, mes) ; }
         }

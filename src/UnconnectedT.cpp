@@ -38,7 +38,7 @@ class UnconnectedT : public Terminal{
             }
         }
         set_environ(res) ; 
-        if(get_environ().size() > 0) {print_environnement(get_environ()) ;}
+        print_environnement(get_environ()) ;
     }
 
     void routine() {

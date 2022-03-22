@@ -12,11 +12,11 @@ using namespace std;
 
 int main(void)
 {
-   World* w = new World(100);
+   World* w = new World(50);
 
    // Var simulation 
    int delta_t = 1000000 ; // Time between each steps of simulation 
-   int nb_step_simulation = 12000; // Pour 10 j de marche 
+   int nb_step_simulation = 2000;  
 
    // Statistics variables :
    int nb_messages_send = 0 ; 
@@ -31,7 +31,7 @@ int main(void)
       cout << "------------- New step  : " << to_string(nb_steps) << " ---------------- \n" ;
       w->simulation() ;
 
-      if (nb_steps % 100 == 1 ) {
+      if (nb_steps % 50 == 1 ) {
          w->random_msg() ;
       }
       //usleep(delta_t) ; 

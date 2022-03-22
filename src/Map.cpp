@@ -2,14 +2,18 @@
 #include <vector>
 #include <unistd.h>
 #include <cstdlib>
+#include "Map_tests/test1.cpp" 
 
 using namespace std ; 
 
 typedef vector<double>arc ; 
 typedef vector<arc> arcs ;
 
+
+
 class Map {
     private :
+
         vector<arcs> graph ;
         vector<int> connected_terminals ; 
         vector<int> terminals ; 
@@ -20,9 +24,19 @@ class Map {
         set_graph() ;
         cout << "|\t graph set.\n" ;
         set_connected_terminals() ;
-        cout << "|\t Spots for connected terminals set.\n" ;
+        cout << "|\t Connected terminals set.\n" ;
+        cout << "Connected terminals  : " ;
+        for (auto a : connected_terminals) {
+            cout << to_string(a) << " " ;
+        }
+        cout << "\n" ; 
         set_terminals() ;
-        cout << "|\t Sports for unconnected terminals set.\n" ;
+        cout << "|\t Unconnected terminals set.\n" ;
+                cout << "Unconnected terminals  : " ;
+        for (auto a : terminals) {
+            cout << to_string(a) << " " ;
+        }
+        cout << "\n" ; 
 
         cout << "Map is ready\n---------------------\n" ;
     } ;
@@ -120,6 +134,7 @@ class Map {
         bool res = false ;
         for (int k : connected_terminals) {
             if (i == k ) {
+ 
                 res = true ;
             }
         }
@@ -132,9 +147,14 @@ class Map {
         
 
     vector<int> choose_path() {
-        vector<int> res ; 
+        vector<int> res ;
         int con_terminals_size = connected_terminals.size() ;
-        int begin = rand()%con_terminals_size  ;
+        if (con_terminals_size == 0) {
+            cout << "Error : No connected terminals in the world. \n" ;
+            exit(42) ; 
+        }
+        int begin = rand()  ;
+        begin = begin%con_terminals_size ; 
         res.push_back(connected_terminals[begin]) ; 
         //Generating a path of 10 steps min
         for (int i = 0 ; i < 30 ; i++) {
@@ -144,6 +164,11 @@ class Map {
         while(not(is_a_con_terminals(res.back()))) {
             res.push_back(choose_next(res.back())) ; 
         }
+        // cout << "path chose : \n" ;
+        // for (auto a : res) {
+        //     cout << " " << to_string(a) ; 
+        // }
+        // cout << "\n" ; 
         return res ;
 
     }
@@ -155,20 +180,36 @@ class Map {
         }
         arcs nexts = graph[i - 1] ;
         int nexts_size = nexts.size() ;
-        // TODO : enlever les aller-retour
         int next_i = rand()%nexts_size ;
-        return graph[i-1][next_i][0] ;
+        int res = graph[i-1][next_i][0] ;
+        if (res > graph.size()) {
+            cout << "Error in choosing next : res out of bound of the graph. \n" ;
+            exit(42) ; 
+        }
+        return res ;
     }
 
     vector<double> compute_path_distance(vector<int> path) {
         vector<double> res ; 
+        // We don't compute distance for the last step
         for (int i = 0 ; i < path.size() - 1 ; i++) {
+            bool find_distance = false ;
             for (int k = 0 ; k < (graph[path[i]-1]).size()  ; k++) {
-                if (graph[path[i]-1][k][0] == path[i+1]) {
+                if (((int)graph[path[i]-1][k][0]) == (path[i+1])) {
                     res.push_back(graph[path[i]-1][k][1]) ;
+                    find_distance = true ;
                 }
             }
-        }
+            if (find_distance == false) {
+                cout << "error in computing path distance \n" ;
+                exit(42) ; 
+
+            }
+        } 
+        //cout << "distances path computed \n" ; 
+        // for (auto a : res) {
+        //     cout << " " << to_string(a) << "\n" ; 
+        // }
         return res ;
     }
 
@@ -187,6 +228,27 @@ class Map {
                 cout << "(" << to_string(i+1) << "," << to_string((int)a[0]) << "," << to_string(a[1]) << ")\n" ;
             }
         }
+    }
+
+
+
+    //*******************Ex 1 *************************************
+
+    
+void t1_set_graph() {
+        graph.push_back({ {2,1} }) ;
+        graph.push_back({ {1,1}, {3,2} }) ;
+        graph.push_back({ {2,2} }) ;
+}
+
+void t1_set_connected_terminals() {
+    //Nodes of the graph which are connected terminals
+    connected_terminals.push_back(1);
+    connected_terminals.push_back(3);
+    }
+
+void t1_set_terminals() {
+    terminals.push_back(2); 
     }
 
 }; 

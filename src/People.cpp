@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <cmath>
 
 #include "Agent.cpp"
 
@@ -13,12 +14,18 @@ class People : public Agent {
     vector<tuple<string, Agent*>> msg_to_send ; 
     vector<vector<string>> msg_to_forward ; 
     double delta_d = 0.1 ; 
+
+    double my_abs(double a1) {
+        if (a1 <= 0) {
+            return (-a1)  ;
+        }
+        else {return a1 ; }
+    }
     
     public :
 
         //***************************** Initialisation ******************************
         People(string id_, vector<int> path_, vector<double> path_d_, double c) : Agent("3" + id_, 0.1 , pos(path_[0], path_[1], 0, path_d_[0])), path(path_), path_distances(path_d_){
-
             set_clock(c) ; 
             cout << "New People creation : \n" ;
             cout << "|\t local id: " << id_ << "\n" ;
@@ -58,7 +65,7 @@ class People : public Agent {
             int next_node = get<1>(p) ; 
             double new_dist = (get<2>(p)) + delta_d;
             double new_rest = (get<3>(p)) - delta_d; 
-            if (abs(new_dist - path_distances[step]) <= 0.01) {
+            if (my_abs(new_dist - path_distances[step]) <= 0.01) {
                 if (new_rest >= 0.01) {
                     cout << "ERROR : People.simulation() : wrong computing of distances\n" ; 
                     exit(42) ; 
@@ -68,7 +75,8 @@ class People : public Agent {
                 step += 1 ;
                 if (step >= path.size() - 1) { // Condition of end of path
                     cout << " ------------- /!  People " << get_id() << "end its path ! \n" ;
-                    set_is_in_park(false) ; 
+                    //set_is_in_park(false) ; 
+                    step = 0 ; 
                 }
                 next_node = path[step+1] ; 
                 new_rest = path_distances[step] ;
@@ -87,7 +95,10 @@ class People : public Agent {
         }
 
         void routine() {
+            //print_flood() ; 
+            //print_delivered_flood() ; 
             flooding() ; 
+            flooding_v2() ; 
             // vector<tuple<string, Agent*>> send_aux = msg_to_send ; 
             // msg_to_send = {} ;
             // for (auto t : send_aux) {
@@ -205,43 +216,60 @@ class People : public Agent {
 
 
     //Calcul des voisin proches : 
-
-     bool near_to(pos a, pos b, double s1, double s2) {
-        int a1 = get<0>(a);
-        int a2 = get<1>(a);
-        double a3 = get<2>(a);
-        double a4 = get<3>(a) ;         
-        int b1 = get<0>(b);
-        int b2 = get<1>(b);
-        double b3 = get<2>(b);
-        double b4 = get<3>(b) ; 
-        
-        if(a1 == b1)  {
-            if (a2 == b2 || a2 == 0) {
-                if (abs(b3-a3) <= s1 + s2) {return true ;}
-                else {return false ;}
-            }
-            else {
-                if (abs(b3 + a3) <= s1 + s2) {return true ; }
-                else {return false ;}
-            }
-        }
-        if(b2 == a1) {
-            if (b1 == a2 || a2 == 0) {
-                if (abs(b4 - a3)  <= s1 + s2 ) {return true ;}
-                else {return false ;}
-            }
+    bool near_to(pos autre, pos moi, double s_autre, double s_moi){
+        int autre_depart = get<0>(autre);
+        int autre_arrivee = get<1>(autre);
+        double autre_dist_depart = get<2>(autre);
+        double autre_dist_arrivee = get<3>(autre) ;         
+        int moi_depart = get<0>(moi);
+        int moi_arrivee = get<1>(moi);
+        double moi_dist_depart = get<2>(moi);
+        double moi_dist_arrivee = get<3>(moi) ; 
+        // Case autre = people  (x1 = autre, x2 = moi) 
+        // 1 )    [1]---- x1 > ---------- < x2 --- [2] 
+        if(autre_depart == moi_arrivee && autre_arrivee == moi_depart) {
+            if(my_abs(autre_dist_arrivee - moi_dist_depart) <= s_autre + s_moi) {  return true ; }
             else {return false ;}
+        }
+        // 2) [1] ---- x1> ---------- x2 >-------- [2] 
+        if (autre_depart == moi_depart && autre_arrivee == moi_arrivee) {
+            if (my_abs(moi_dist_depart - autre_dist_depart) <= s_autre + s_moi) { return true ; }
+            else {return false ;}
+        }
+        // 3) [3] --- x2> ---- [2] ---- x1> ---- [1]
+        if (autre_arrivee == moi_depart && autre_depart != moi_arrivee) {
+            if (autre_dist_arrivee + moi_dist_depart < s_autre+s_moi) {return true ;}
+            else {return false;}
+        }
+        // 4) [3] ---- x2> ------ [2] ------ <x1 -------- [1]
+        if (autre_arrivee == moi_arrivee && autre_depart != moi_depart) {
+            if (autre_dist_arrivee + moi_dist_arrivee <= s_autre + s_moi) { return true ;}
+            else {return false ;}
+        }
+        // 5) [3]------ <x2  -------- [2] --- x1> -------- [1]
+        if (autre_depart == moi_depart && autre_arrivee != moi_arrivee) {
+            if(autre_dist_depart + moi_dist_depart <= s_autre + s_moi) { return true ;}
+            else {return false ; }
+        }
+        // 6) [3] ----------- <x2 ----- [2] ----<x1--------[1]
+        if(autre_depart == moi_arrivee && autre_arrivee != moi_depart) {
+            if(autre_dist_depart + moi_dist_arrivee <= s_autre + s_moi) {return true ; }
+            else {return false ; }
+        }
 
+
+        // Case terminals 
+        if (autre_depart == moi_arrivee){
+            if (moi_dist_arrivee <= s_autre + s_moi) {return true ;}
+            else{return false ; }
+        }
+        if (autre_depart == moi_depart){
+            if(moi_dist_depart <= s_autre + s_moi) {return true ;}
+            else {return false ;}
         }
         return false ;
     }
-   
-
-
-
-
-        
+     
        
 
 };

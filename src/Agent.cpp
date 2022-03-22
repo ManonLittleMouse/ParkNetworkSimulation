@@ -105,17 +105,17 @@ public :
         tuple<string, Agent* , float > t(a_msg, dest, date) ; 
         msg_flood.push_back(t) ; 
     }
+
     int flooding() {   
         for(tuple<string, Agent*, float> t :msg_flood) {
             Agent* dest = get<1>(t) ; 
             for(Agent* ag : get_environ()) {
                 if (ag == dest){
                     dest->delivery_msg_flood(get<0>(t)) ; 
-                    return 0 ; 
                 }
                 else {
-                    if (!(ag->is_here(t))) {
-                        cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t flooding :  <<" << get<0>(t) << "," << get<1>(t)->get_id() << " >> from " << get_id() << " to " << ag->get_id()  << "\n" ;
+                    if (!(ag->is_here(get<0>(t)))) {
+                        cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t flooding v1 :  <<" << get<0>(t) << "," << get<1>(t)->get_id() << " >> from " << get_id() << " to " << ag->get_id()  << "\n" ;
                         ag->msg_flood.push_back(t) ; 
                     }
                 }
@@ -123,10 +123,11 @@ public :
         }
         return 0 ; 
     }
-    bool is_here(tuple<string, Agent*, float> t) {
+    bool is_here(string msg) {
         bool res = false ; 
-            for (auto t2 : msg_flood) {
-                if (t2 == t) {
+            for (tuple<string, Agent*, float> t2 : msg_flood) {
+                string msg2 = get<0>(t2) ;  
+                if (msg == msg2) {
                     res = true; 
                 }
             }
@@ -136,7 +137,8 @@ public :
         vector<tuple<string, Agent*, float>> aux_msgs ; 
         for (tuple<string, Agent*, float> t : msg_flood) {
             float date = get<2>(t) ; 
-            if (date > clock - 86400 ) { // Les messages sont supprimés au bout d'une journée. 
+            //if (date > clock - 86400 ) { // Les messages sont supprimés au bout d'une journée. 
+            if (true) {
                 aux_msgs.push_back(t) ; 
             }
         }
@@ -162,23 +164,21 @@ public :
         tuple<string, Agent* , float > t(a_msg, dest, date) ; 
         msg_flood_v2.push_back(t) ; 
     }
-    int flooding_v2() {  
+    int flooding_v2() { 
         for(tuple<string, Agent*, float> t :msg_flood_v2) {
             Agent* dest = get<1>(t) ; 
             for(Agent* ag : get_environ()) {
+                if (ag == dest) {
+                    dest->delivery_msg_flood_v2(get<0>(t)) ; 
+                }
                 if (ag->get_id().substr(0,1) == "3") {
-                    if (ag == dest){
-                        dest->delivery_msg_flood_v2(get<0>(t)) ; 
-                        return 0 ; 
-                    }
-                    else {
-                        if (!(ag->is_here_v2(t))) {
-                            cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t flooding V2 :  <<" << get<0>(t) << "," << get<1>(t)->get_id() << " >> from " << get_id() << " to " << ag->get_id()  << "\n" ;
-                            ag->msg_flood_v2.push_back(t) ; 
-                        }
+                    if (!(ag->is_here_v2(get<0>(t)))) {
+                        cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t flooding v2 :  <<" << get<0>(t) << "," << get<1>(t)->get_id() << " >> from " << get_id() << " to " << ag->get_id()  << "\n" ;
+                        ag->msg_flood_v2.push_back(t) ; 
                     }
                 }
             }
+            
         }
         return 0 ; 
     }
@@ -186,16 +186,18 @@ public :
         vector<tuple<string, Agent*, float>> aux_msgs ; 
         for (tuple<string, Agent*, float> t : msg_flood_v2) {
             float date = get<2>(t) ; 
-            if (date > clock - 86400 ) { // Les messages sont supprimés au bout d'une journée. 
+//            if (date > clock - 86400 ) { // Les messages sont supprimés au bout d'une journée. 
+            if (true) {
                 aux_msgs.push_back(t) ; 
             }
         }
         msg_flood_v2 = aux_msgs ; 
     }
-    bool is_here_v2(tuple<string, Agent*, float> t) {
+    bool is_here_v2(string msg) {
         bool res = false ; 
-            for (auto t2 : msg_flood_v2) {
-                if (t2 == t) {
+            for (tuple<string, Agent*, float> t2 : msg_flood_v2) {
+                string msg2 = get<0>(t2) ;  
+                if (msg == msg2) {
                     res = true; 
                 }
             }
@@ -386,7 +388,9 @@ public :
 
     void print_environnement(vector<Agent*> e) {
         if (e.size() > 0) {
-            cout << "\tAgent " << get_id()<<"(node:"<< to_string(get<0>(get_pos()))<< " + " << to_string(get<2>(get_pos())) << ")" << " has company: " ;
+            cout << "\tAgent " << get_id()<<"( " ;
+            print_pos(get_pos()) ; 
+            cout << ")" << " has company: " ;
             for (Agent* ag : e) {
                 cout << ag->get_id() ;
                 //print_pos(ag->get_pos()) ;
@@ -413,6 +417,35 @@ public :
             cout << "(" << a << "," << b->get_id() << "," << to_string(c) << ") " ; 
         }
         cout << "\n" ; 
+    }
+
+    void print_flood() {
+        cout << "msg to flood v1 : \n" ; 
+        for (tuple<string, Agent*, float> t :msg_flood){
+            string msg = get<0>(t) ; 
+            cout << msg << " " ; 
+        }
+        cout << "\n" ; 
+        cout << "msg to flood v2 : \n" ; 
+        for (tuple<string, Agent*, float> t :msg_flood_v2){
+            string msg = get<0>(t) ; 
+            cout << msg << " " ; 
+        }
+        cout << "\n" ; 
+    }
+
+    void print_delivered_flood() {
+    cout << "delivered msg flood v1 : \n" ; 
+        for (string m : delivered_msg_flood){ 
+            cout << m << " " ; 
+        }
+        cout << "\n" ; 
+        cout << "delivered msg flood v2 : \n" ; 
+        for (string m :delivered_msg_flood_v2){
+            cout << m << " " ; 
+        }
+        cout << "\n" ; 
+
     }
 };
   

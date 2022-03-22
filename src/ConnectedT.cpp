@@ -31,7 +31,7 @@ class ConnectedT : public Terminal {
 
         }
         set_environ(res) ; 
-        //print_environnement(get_environ()) ;
+        print_environnement(get_environ()) ;
     }
 
 
