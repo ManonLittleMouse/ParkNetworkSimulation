@@ -8,7 +8,8 @@ set(SRCS
     Terminal.cpp
     Map.cpp
     World.cpp
-    #Map_tests/test1.cpp
+    AppMsg.cpp 
+    Msg.cpp
     )
     
 add_executable(main ${SRCS} )

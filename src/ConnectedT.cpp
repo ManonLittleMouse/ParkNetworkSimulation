@@ -1,126 +1,281 @@
+#ifndef CONNECTED_H
+#define CONNECTED_H
+
+#include <iostream>
+#include <vector>
+#include <unistd.h>
+#include <map>
+#include <cmath>
+
 #include "Terminal.cpp"
 
+using namespace std;
 
-using namespace std ; 
+class ConnectedT : public Terminal
+{
+private:
+public:
+    /*****************************
+     * CHAMPS WORLD MANAGEMENT *
+     * *****************************/
 
-class ConnectedT : public Terminal {
-    private :
+    map<string, info> conT_traces;
+    /*******************************
+     * CHAMPS MSG MANAGEMENT *
+     * ******************************/
+    vector<AppMsg *> buffer_flood_v1;
+    vector<AppMsg *> buffer_delegate_conT;
+    vector<AppMsg *> buffer_delegate;
+    /*******************************
+     * INITIALISATION *************
+     * ****************************/
 
-    string id ;
+    ConnectedT(string id_, int node) : Terminal("1" + id_, 0.3, node){};
 
-    public :
+    /***************************************************************
+     *
+     *
+     * ***************************************************************/
 
-     ConnectedT(string id_, int node) : Terminal("1" + id_, 0.3, node) {} ;
+    /* -------------------------
+    ******** WORLD MANAGEMENT *
+    ------------------------------*/
+    void routine()
+    {
+        actualise_environ();
+        actualise_traces();
+    }
 
-     void routine() {
-        actualise_environ() ; 
-        flooding() ; 
-      }
-
-    void actualise_environ() {
-        vector<Agent*> res ; 
-        for (Agent* ag : get_world()) {
-            if (ag->get_id().substr(0,1) == "1" && (ag->get_id() != get_id())) {
-                res.push_back(ag) ; 
+    void actualise_environ()
+    {
+        vector<Agent *> res;
+        cout << "Connected terminal  " << id << " environnement : ";
+        for (Agent *p : people)
+        {
+            if (near_to(p->my_pos, my_pos, p->scope, scope))
+            {
+                res.push_back(p);
+                cout << p->id << " ";
             }
-            else { 
-                if ((ag->get_id() != get_id()) && near_to(ag->get_pos() , get_pos(), ag->get_scope(), get_scope())){
-                    res.push_back(ag) ; 
+        }
+        cout << "\n";
+        people_environ = res;
+    }
+
+    void actualise_traces()
+    {
+        for (Agent *p : people_environ)
+        {
+            info i(clock, id, compute_probas(p));
+            conT_traces[p->id] = i;
+            if (conT_traces.count(p->id) == 0)
+            {
+                cout << "Error in collecting traces"
+                     << " \n";
+                exit(42);
+            }
+        }
+    }
+
+    probas compute_probas(Agent *p)
+    {
+        // TODO : add incertitudes
+        probas res;
+        proba i(p->get_accurate_path(1)); // Param is the proba (incertitude)
+        res.push_back(i);
+        return res;
+    }
+
+    /* -----------------------------------
+    ********* MSG MANAGEMENT *************
+    ------------------------------------*/
+    bool receive(AppMsg *m)
+    {
+        if (m->type_msg == "flood_v1" && !is_here(buffer_flood_v1, m))
+        {
+            cout << " \t\t\t\t\t\t --> Connected Terminal " << id << " receive ";
+            m->print_AppMsg();
+            buffer_flood_v1.push_back(m);
+            return true;
+        }
+        if (m->type_msg == "delegate" && !is_here(buffer_delegate_conT, m))
+        {
+            cout << " \t\t\t\t\t\t --> Connected Terminal " << id << " receive ";
+            m->print_AppMsg();
+            buffer_delegate_conT.push_back(m);
+            return true;
+        }
+        if (m->type_msg == "delegate_conT" && !is_here(buffer_delegate, m))
+        {
+            cout << " \t\t\t\t\t\t --> Connected Terminal " << id << " receive ";
+            m->print_AppMsg();
+            buffer_delegate.push_back(m);
+            return true;
+        }
+        return false;
+    }
+    bool is_here(vector<AppMsg *> buff, AppMsg *m)
+    {
+        bool res = false;
+        for (AppMsg *msg : buff)
+        {
+            if (msg->equal(m))
+            {
+                res = true;
+            }
+        }
+        return res;
+    }
+
+    void flooding()
+    {
+        for (AppMsg *m : buffer_flood_v1)
+        {
+            for (Agent *p : people_environ)
+            {
+                p->receive(m);
+            }
+            for (Agent *conT : connected_terminal)
+            {
+                conT->receive(m);
+            }
+        }
+    }
+
+    void delegate_conT()
+    {
+        vector<AppMsg *> buffer_aux = buffer_delegate_conT;
+        buffer_delegate_conT.clear();
+        for (AppMsg *m : buffer_aux)
+        {
+            vector<info> inf = traces_mutualise(m->the_msg->dest);
+            info i = get_last_traces(inf);
+            double date = get<0>(i);
+            string recent_global_id = get<1>(i);
+            string recent_id = (get<1>(i)).erase(0);
+            Agent *recent_conT = id_to_conT(recent_global_id);
+            cout << "debug : " << recent_global_id << "\n";
+            int how_old = old(date);
+            AppMsg *new_m = new AppMsg("delegate_conT", m->the_msg, m->duplication);
+            cout << "oui1\n";
+            recent_conT->receive(new_m);
+        }
+    }
+
+    void delegate()
+    {
+        vector<AppMsg *> buffer_aux = buffer_delegate;
+        buffer_delegate.clear();
+        for (AppMsg *m : buffer_aux)
+        {
+            bool sended = false;
+            for (Agent *p : people_environ)
+            {
+                if (p->id == m->the_msg->dest)
+                {
+                    sended = p->receive(m);
                 }
             }
-
-        }
-        set_environ(res) ; 
-        print_environnement(get_environ()) ;
-    }
-
-
-    void process_msg() {
-        string delimiter = "," ;
-        for (string a_msg : get_msg()) {
-            vector<string> msg_parsed = parse_msg(a_msg, delimiter) ;
-            string msg_type = msg_parsed[0] ;
-            msg_parsed.erase(msg_parsed.begin()) ;
-            vector<string> param = msg_parsed ;
-            if (msg_type == "delegate") {
-                delegate_function_connected_version(param[0], param[1]) ;
-            }
-            else {
-                cout << "Error : deal with unknown message\n" ;
-                exit(42) ;
-            }
-        }
-    }
-
-    void delegate_function_connected_version(string m, string j) {
-        traces_mutualise(j) ;
-        print_trace(j) ; 
-        if ((get_traces()).count(j) >= 1) {
-            infos vec = get_traces()[j] ;
-            tuple<double, string> last = get_last_traces(vec) ;
-            string last_t = get<1>(last) ; 
-            int nb_co_term = 0; 
-            for (Agent* ag : get_world()) {
-                if (ag->get_id().substr(0,1) == "1") {
-                    nb_co_term ++ ;
+            if (!sended)
+            {
+                for (Agent *p : people_environ)
+                {
+                    cout << "Connected T " << id << "is computing score of " << p->id << "\n";
+                    int score = compute_score(p, m->the_msg->dest);
+                    int seuil = compute_score_seuil(m);
+                    if (score > seuil)
+                    {
+                        AppMsg *new_m = new AppMsg("forward", m->the_msg, m->duplication);
+                        new_m->params.push_back(id);
+                        new_m->params.push_back(compute_indications(p, m->the_msg->dest));
+                        sended = p->receive(new_m);
+                    }
                 }
             }
-            int is_old = old(get<0>(last)) ;
-            if (is_old >= 1) {
-                cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t *** Agent " << get_id() << " delegates to : " << last_t << "\n" ; 
-                have_to_forward(m,j,last_t) ;
-            }
-            //TODO : add neighbours coTerminal.
-            else {
-                have_to_forward(m,j,last_t) ;
-            }
-        }
-
-    }
-
-    void have_to_forward( string m, string j, string k) {
-        Terminal* t = id_to_terminal(k) ;
-        t->delegate_function(m,j) ; 
-    }
-
-    tuple<double, string> get_last_traces(infos vec) {
-        tuple<double, string> res(get<0>(vec[0]) , get<1>(vec[0]));
-        for (info i : vec) {
-            if (get<0>(i) < get<0>(res)){
-                tuple<double,string> aux(get<0>(i) , get<1>(i)) ;
-                res = aux ; 
-            }
-        }
-        return res ;
-    }
-
-    int old(double l) {
-     //   TODO : ici les choix sont totalement arbitraires.
-        if (l >= 4800) {
-            return 4 ;
-        }
-        if ( l >= 2400) {
-            return 3 ; 
-        }
-        if ( l >= 1200) {
-            return 2 ; 
-        }
-        return 1 ;
-    }
-    void traces_mutualise(string j) {
-        for (Agent* ag : get_world()) {
-            if (ag->get_id().substr(0,1) == "1") {
-                infos traces = (ag->get_traces())[j] ;
-                infos my_traces = get_traces()[j] ;
-                for (auto t : traces) {
-                    my_traces.push_back(t) ;
-                }
-                set_traces(my_traces, j) ;
+            if (!sended)
+            {
+                buffer_delegate.push_back(m);
             }
         }
     }
 
-    
+    Agent *id_to_conT(string an_id)
+    {
+        Agent *res;
+        for (Agent *ag : connected_terminal)
+        {
+            if (ag->id == an_id)
+            {
+                res = ag;
+            }
+        }
+        return res;
+    }
 
+    info get_last_traces(vector<info> vec)
+    {
+        info res = vec[0];
+        for (info i : vec)
+        {
+            if (get<0>(i) > get<0>(res))
+            {
+                res = i;
+            }
+        }
+        cout << "last_traces : " << get<1>(res) << "\n";
+        return res;
+    }
 
+    int old(double date)
+    {
+        double actual_date = clock;
+        double dt = actual_date - date; // (en seconde)
+        if (dt < 0)
+        {
+            cout << "Error in computing time in old function : negative time\n";
+            exit(42);
+        }
+
+        //   TODO : ici les choix sont totalement arbitraires.
+        if (dt / 60 >= 5) // 5h
+        {
+            return ((connected_terminal.size() / 2) - 1);
+        }
+        if (dt / 60 >= 2)
+        {
+            return (connected_terminal.size() / 3) - 1;
+        }
+        if (dt / 60 >= 0.5)
+        {
+            return 1;
+        }
+        return 1;
+    }
+
+    vector<info> traces_mutualise(string j)
+    {
+        vector<info> res;
+
+        for (Agent *ag : connected_terminal)
+        {
+            if (!((((ConnectedT *)ag)->conT_traces).count(j) == 0))
+            {
+                info i = ((ConnectedT *)ag)->conT_traces[j];
+                cout << "Agent " << ag->id << " have traces of " << j << " at : " << to_string(get<0>(i)) << "\n ";
+                res.push_back(i);
+            }
+        }
+        if (res.empty())
+        {
+            cout << "Error traces_mutualise : no traces of : " << j << "\n";
+            for (Agent *t : connected_terminal)
+            {
+                ((ConnectedT *)t)->print_trace(conT_traces[j], j);
+            }
+            exit(42);
+        }
+        return res;
+    }
 };
+
+#endif

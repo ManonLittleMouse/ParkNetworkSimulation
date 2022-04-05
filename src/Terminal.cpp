@@ -2,167 +2,92 @@
 #define TERMINAl_H
 
 #include "Agent.cpp"
+#include "People.cpp"
 #include <tuple>
 #include <iostream>
 #include <string>
 
-using namespace std ; 
+using namespace std;
 
+class Terminal : public Agent
+{
+private:
+public:
+    traces_type traces;
+    int node;
+    vector<tuple<string, string>> buffer_delegate = {};
 
-class Terminal : public Agent{
-    private :
+    vector<Agent *> people_environ;
 
-    string id ;
-    traces_type traces ;
-    int node ;
-    vector<tuple<string,string>> buffer_delegate = {} ;  
- 
+    Terminal(string id_, double scope, int node_) : Agent(id_, scope, pos(node_, 0, 0, 0)), node(node_){};
 
-    public :
+    void virtual simulation(vector<Agent *> w, int c) {}
 
-    Terminal(string id_, double scope, int node_) : Agent(id_,  scope, pos(node_, 0, 0, 0)) , node(node_) {} ;
+    void virtual routine() {}
 
-    void simulation(vector<Agent*> w, float c) {
-        set_world(w) ; 
-        set_clock(c); 
-        routine() ; 
+    void virtual actualise_environ(){};
+
+    traces_type get_traces() { return traces; }
+    void set_traces(info new_traces, string j) { traces[j] = new_traces; }
+
+    void virtual actualise_traces() {}
+
+    probas virtual compute_probas(Agent *ag)
+    {
+        // TODO : add incertitudes
+        probas res;
+        proba i(ag->get_accurate_path(1));
+        res.push_back(i);
+        return res;
     }
-    
 
-    void virtual routine() {
-        actualise_environ() ;
-        print_flood() ; 
-        flooding() ; 
-        //actualise_traces() ; 
-        //delegate() ; 
+    bool virtual receive(AppMsg *m) { return false; }
+
+    // Here is changing score. En flood pour l'instant
+    double compute_score_seuil(AppMsg *m)
+    {
+        // Change score seuil here
+        return (double)0;
     }
 
-    void virtual actualise_environ() {} ; 
+    double compute_score(Agent *ag, string dest)
+    {
+        // TODO  + décider d'aller vers la bordure ici
+        return (double)1;
+    }
 
-    Terminal*  id_to_terminal(string id) {
-        Terminal* res ;
-        for (Agent* ag : get_world()) {
-            if (ag->get_id()  == id) {
-                res = (Terminal *)ag ; 
-            }
+    string compute_indications(Agent *ag, string dest)
+    {
+        return "indications";
+    }
+
+    //*******************Prettyprint ***************************
+    void print_trace(info an_info, string j)
+    {
+        cout << "traces of " << id << " about " << j << " : ";
+
+        double a = get<0>(an_info);
+        string b = get<1>(an_info);
+        probas c = get<2>(an_info);
+
+        cout << "\t"
+             << "(" << to_string(a) << "," << b << ",";
+        print_probas(c);
+
+        cout << "\n";
+    }
+
+    void print_probas(probas p)
+    {
+        for (proba a_proba : p)
+        {
+            int depart = get<0>(a_proba);
+            int arrivee = get<1>(a_proba);
+            double erreur = get<2>(a_proba);
+            cout << "[" << to_string(depart) << "," << to_string(arrivee) << "," << to_string(erreur) << "]";
         }
-        return res ;
+        cout << "\n";
     }
-
-
-
-
-   traces_type get_traces() {
-       return traces ;
-   }
-
-   void set_traces(infos new_traces, string j) {
-       traces[j] = new_traces ;
-   }
-
-   void actualise_traces() {
-       for (Agent* ag : get_environ()) {
-           info i(get_clock() , get_id(), compute_probas(ag) ) ;
-           traces_type infs = get_traces() ;
-           infos res ; 
-           if (infs.count(ag->get_id()) >= 1) {
-               res = infs[ag->get_id()] ; 
-           }
-           res.push_back(i) ;
-           set_traces(res, ag->get_id()) ;
-       }
-
-   }
-
-   probas compute_probas(Agent* ag) {
-       //TODO : add incertitudes 
-       probas res ;
-       proba i(ag->get_accurate_path(), 1) ;
-       res.push_back(i) ;
-       return res ; 
-
-   }
-
-   double compute_limite(string m) {
-      //TODO : terminal.compute_limite()\n " ;
-       return 0 ;
-   }
-
-   double compute_min(string m) {
-      //TODO : terminal.compute_min()\n" ;
-       return 0 ;
-   }
-
-   string indications(string j) {
-       //TODO : terminal.indication\n" ;
-       return "" ;
-   }
-
-   void virtual process_msg() {}
-
-   void delegate_function(string m, string j) {
-       
-       bool sended = false ; 
-       Agent* dest = id_to_agent(j) ; 
-       for (Agent* ag : get_environ()) {
-           if (ag == dest) {
-               dest->delivery_msg(m) ; 
-               sended = true ; 
-           }
-       }
-        
-       if (not(sended)) {
-           vector<tuple<Agent*,double>> relevance ;
-           double limite = compute_limite(m) ; 
-           double min = compute_min(m) ;
-           double K = limite - min * (get_environ()).size() ;
-           for (Agent* xk : get_environ()) {
-               double k = evaluate_traces(j, traces, xk->get_id()) ;
-               tuple<Agent*, double> tmp(xk,k) ;
-               relevance.push_back(tmp) ;
-           }
-           bool forwarded = false ;  
-           for (auto res : relevance) {
-               Agent* xk = get<0>(res) ;
-               double k = get<1>(res) ; 
-               if (k> K) {
-                   broadcast_msg("forward" + m + "," + j+ ","  + to_string(k)+ ","  + get_id() + "," + indications(j) , xk );
-                   forwarded = true ; 
-               }
-           }
-           if (not(forwarded)) { 
-               tuple<string,string> res(m,j) ; 
-               buffer_delegate.push_back(res) ; 
-           }
-       }
-        
-   }
-
-   //*******************Prettyprint ***************************
-   void print_trace(string j) {
-       cout << "traces of " << get_id() << " : " ;
-       infos is = get_traces()[j] ; 
-       for(info i : is) {
-           double a = get<0>(i) ;
-           string b = get<1>(i) ; 
-
-           cout << j << "(" << to_string(a) << "," << b << ")\n" ;
-       }
-       cout << "\n" ;
-   }
-
-   void delegate(){
-       vector<tuple<string,string>> buf_del_aux = buffer_delegate ;
-       buffer_delegate = {} ; 
-
-       for (auto c : buf_del_aux) {
-           string m = get<0>(c) ; 
-           string j = get<1>(c) ; 
-           delegate_function(m,j) ;
-       }
-   }
-
-
 };
 
 #endif

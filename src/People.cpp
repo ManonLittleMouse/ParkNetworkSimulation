@@ -1,275 +1,495 @@
+#ifndef PEOPLE_H
+#define PEOPLE_H
+
 #include <iostream>
 #include <vector>
 #include <cmath>
 
 #include "Agent.cpp"
+#include "Msg.cpp"
+#include "AppMsg.cpp"
 
-using namespace std ; 
+using namespace std;
 
-class People : public Agent {
-    private :
-    vector<int> path ; 
-    vector<double> path_distances ; 
-    int step = 0 ; 
-    vector<tuple<string, Agent*>> msg_to_send ; 
-    vector<vector<string>> msg_to_forward ; 
-    double delta_d = 0.1 ; 
+class People : public Agent
+{
+public:
+    /*****************************
+     *
+     *
+     * CHAMPS WORLD MANAGEMENT *
+     *
+     *
+     * *****************************/
+    vector<Agent *> near_conT;
+    vector<Agent *> near_unconT;
+    vector<Agent *> near_people;
 
-    double my_abs(double a1) {
-        if (a1 <= 0) {
-            return (-a1)  ;
+    /************************
+     * People move champs *
+     * **********************/
+    vector<int> path;
+    vector<double> path_distances;
+    int step = 0;
+    vector<tuple<string, Agent *>> msg_to_send;
+    vector<vector<string>> msg_to_forward;
+    double delta_d = 0.1;
+
+    /*****************************
+     *
+     *
+     * CHAMPS MSG MANAGEMENT *
+     *
+     *
+     * *****************************/
+
+    vector<Message *> buffer_my_msg;
+
+    vector<AppMsg *> buffer_flood_v1;
+    vector<AppMsg *> buffer_flood_v2;
+
+    vector<AppMsg *> buffer_look_dest;
+    vector<AppMsg *> buffer_look_delegate_term;
+    vector<AppMsg *> buffer_forward;
+
+    vector<AppMsg *> arrived_msg;
+
+    //***************************** Initialisation ******************************
+    People(string id_, vector<int> path_, vector<double> path_d_, double c) : Agent("3" + id_, 0.1, pos(path_[0], path_[1], 0, path_d_[0])), path(path_), path_distances(path_d_)
+    {
+        clock = c;
+        cout << "New People creation : \n";
+        cout << "|\t local id: " << id_ << "\n";
+        cout << "|\t global id: " << id << "\n";
+        cout << "|\t path: [";
+        print_path(path_);
+        cout << "]\n";
+        cout << "|\t path_distance: [";
+        print_path_distance(path_distances);
+        cout << "]\n";
+        cout << "|\t pos: ";
+        print_pos(my_pos);
+        cout << "\n";
+        cout << "|\t scope: " << to_string(scope) << "\n";
+
+        if (path_distances.size() != path.size() - 1)
+        {
+            cout << "Error in path generation : distances ("
+                 << path_distances.size() << ", " << path.size() << ") are not enought or too much\n";
+            exit(42);
         }
-        else {return a1 ; }
+    };
+
+    //***********************************************************************
+    //*************************** Simulation *************************
+    void move()
+    {
+        //************ People deplacement ***********************
+        pos p = my_pos;
+        int current_node = get<0>(p);
+        int next_node = get<1>(p);
+        double new_dist = (get<2>(p)) + delta_d;
+        double new_rest = (get<3>(p)) - delta_d;
+        if (new_rest < 0)
+        {
+            if (step == path_distances.size())
+            {
+                step = 0;
+            }
+            else
+            {
+                step++;
+            }
+            current_node = path[step];
+            next_node = path[step + 1];
+            new_rest = path_distances[step];
+            new_dist = 0;
+            cout << "People " << id << " has reach a new step: " << to_string(current_node) << "\n";
+        }
+        if (new_rest < 0 || new_dist < 0)
+        {
+            cout << "Error in computing distances of people !\n"
+                 << "For People " << id << " where path_distance is : "
+                 << to_string(path_distances[step])
+                 << " with step = " << to_string(step) << "\n"
+                 << " New dist : " << to_string(new_dist)
+                 << "New rest : " << to_string(new_rest) << "\n";
+            exit(42);
+        }
+        my_pos = pos(current_node, next_node, new_dist, new_rest);
     }
-    
-    public :
 
-        //***************************** Initialisation ******************************
-        People(string id_, vector<int> path_, vector<double> path_d_, double c) : Agent("3" + id_, 0.1 , pos(path_[0], path_[1], 0, path_d_[0])), path(path_), path_distances(path_d_){
-            set_clock(c) ; 
-            cout << "New People creation : \n" ;
-            cout << "|\t local id: " << id_ << "\n" ;
-            cout << "|\t global id: " << get_id() << "\n" ;
-            cout << "|\t path: [" ;
-            print_path(path_) ;
-            cout <<  "]\n" ; 
-            cout << "|\t path_distance: [" ;
-            print_path_distance(path_distances) ;
-            cout << "]\n" ;
-            cout << "|\t pos: " ;
-            print_pos(get_pos()) ;
-            cout << "\n" ;
-            cout << "|\t scope: "  << to_string(get_scope()) << "\n" ;
-
-            if (path_distances.size() != path.size() - 1) {
-                cout << "Error in path generation : distances (" 
-                << path_distances.size()<< ", " << path.size() << ") are not enought or too much\n" ;
-                exit(42) ;
-            }
-        } ;
-        //**********************************************************************
-        //******************************* Getter/Setter *************************
-
-        vector<int> get_path() { return path ;}
-        int get_accurate_path() {return path[step] ; }
-
-        //***********************************************************************
-        //*************************** Simulation *************************
-        void simulation(vector<Agent*> w, float c) {
-            set_clock(c) ; 
-            set_world(w) ; 
-            actualise_environ() ; 
-            //************ People deplacement ***********************
-            pos p = get_pos() ;
-            int current_node = get<0>(p);
-            int next_node = get<1>(p) ; 
-            double new_dist = (get<2>(p)) + delta_d;
-            double new_rest = (get<3>(p)) - delta_d; 
-            if (my_abs(new_dist - path_distances[step]) <= 0.01) {
-                if (new_rest >= 0.01) {
-                    cout << "ERROR : People.simulation() : wrong computing of distances\n" ; 
-                    exit(42) ; 
-                }
-                current_node = get<1>(get_pos()) ; 
-                new_dist = 0 ; 
-                step += 1 ;
-                if (step >= path.size() - 1) { // Condition of end of path
-                    cout << " ------------- /!  People " << get_id() << "end its path ! \n" ;
-                    //set_is_in_park(false) ; 
-                    step = 0 ; 
-                }
-                next_node = path[step+1] ; 
-                new_rest = path_distances[step] ;
-                cout << "People " << get_id() << " has reach a new step: " << to_string(current_node) << "\n" ;
-                
-            }
-
-            if (new_rest < 0 || new_dist < 0 ) {
-                cout << "Error in computing distances of people ! \n";
-                exit(42) ;
-            }
-
-            set_pos(pos(current_node, next_node, new_dist, new_rest)) ;
-            //*********************************************
-            routine() ; // People send/forward messages if they have messages in their buffers. 
-        }
-
-        void routine() {
-            //print_flood() ; 
-            //print_delivered_flood() ; 
-            flooding() ; 
-            flooding_v2() ; 
-            // vector<tuple<string, Agent*>> send_aux = msg_to_send ; 
-            // msg_to_send = {} ;
-            // for (auto t : send_aux) {
-            //     send_msg(get<0>(t), get<1>(t)) ;
-            // }
-
-            // vector<vector<string>> forward_aux = msg_to_forward ; 
-            // msg_to_forward = {} ;
-            // for (auto t : forward_aux) {
-            //     forward(t) ; 
-            // }
-        }
-        void actualise_environ() {
-            vector<Agent*> res ; 
-            for (Agent* ag : get_world()) {
-                if ((ag->get_id() != get_id()) && near_to(ag->get_pos() , get_pos(), ag->get_scope(), get_scope())){
-                    res.push_back(ag) ; 
-                }
-            }
-            set_environ(res) ;
-            print_environnement(res) ; 
-        }
-    //************************* Messages management (= Algorithm) *************************
-
-        void send_msg(string a_msg, Agent* dest) {
-            actualise_environ() ;
-            bool sended = false ; 
-            for (Agent* a : get_environ()) {
-                if (a == dest) {
-                    dest->delivery_msg(a_msg) ; 
-                    sended = true ; 
-                }
-            }
-            if (sended == false && not(get_terminals().empty())){
-                for (Agent* pj : get_terminals()) {
-                    cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t --- Agent "<< get_id() << " send <" << "delegate," + a_msg + "," + dest->get_id() << "> to " << pj->get_id() << "\n" ; 
-                    broadcast_msg("delegate," + a_msg + "," + dest->get_id() , pj) ; 
-                }
-            }
-            else {
-                if (not(sended)) {
-                    tuple<string, Agent*> t(a_msg, dest) ; 
-                    msg_to_send.push_back(t) ;
-                }
-
+    void actualise_environ()
+    {
+        near_conT.clear();
+        near_unconT.clear();
+        near_people.clear();
+        cout << "People " << id << " environnement : ";
+        for (Agent *conT : connected_terminal)
+        {
+            if (conT->id != id && near_to(conT->my_pos, my_pos, conT->scope, scope))
+            {
+                near_conT.push_back(conT);
+                cout << conT->id << " ";
             }
         }
-
-
-
-        void forward(vector<string> param) {
-            if (param.size() != 5) {
-                cout << "Error : People.forward(param) : Too many/not enought parameters ! \n" ;
-                exit(42) ;
+        for (Agent *unconT : unconnected_terminal)
+        {
+            if (unconT->id != id && near_to(unconT->my_pos, my_pos, unconT->scope, scope))
+            {
+                near_unconT.push_back(unconT);
+                cout << unconT->id << " ";
             }
-            actualise_environ() ;
-            if (get_environ().empty()) {
-                msg_to_forward.push_back(param) ; 
+        }
+        for (Agent *p : people)
+        {
+            if (p->id != id && near_to(p->my_pos, my_pos, p->scope, scope))
+            {
+                near_people.push_back(p);
+                cout << p->id << " ";
             }
-            else {
-                string a_msg = param[0] ;
-                string dest = param[1] ;
-                double k = stod(param[2]) ;
-                string t = param[3] ;
-                string infos = param[4] ;
-                bool forwarded = false ;
-                for (auto a : get_environ()) {
-                    if (a->get_id() == dest) {
-                        id_to_agent(dest)->delivery_msg(a_msg) ; 
-                        forwarded = true ; 
+        }
+        cout << "\n";
+    }
+
+    /*******************
+     *  Messages management  *
+     * ***********************/
+
+    bool receive(AppMsg *m)
+    {
+        if (m->the_msg->dest == id)
+        {
+            if (!is_here(arrived_msg, m))
+            {
+                // Message est arrive à destination
+                arrived_msg.push_back(m);
+                cout << "\t\t\t\t\t\t\t\t\t\t\t ----> THE MSG " << m->the_msg->id << " ARRIVED AT DESTINATION ! \n";
+                return true;
+            }
+        }
+        else
+        {
+            if (m->type_msg == "flood_v1" && !is_here(buffer_flood_v1, m))
+            {
+                cout << " \t\t\t\t\t\t --> People " << id << " receive ";
+                m->print_AppMsg();
+                buffer_flood_v1.push_back(m);
+                return true;
+            }
+            if (m->type_msg == "flood_v2" && !is_here(buffer_flood_v2, m))
+            {
+                cout << " \t\t\t\t\t\t --> People " << id << " receive ";
+                m->print_AppMsg();
+                buffer_flood_v2.push_back(m);
+                return true;
+            }
+            if (m->type_msg == "forward" && !is_here(buffer_forward, m))
+            {
+                cout << " \t\t\t\t\t\t --> People " << id << " receive ";
+                m->print_AppMsg();
+                buffer_forward.push_back(m);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void send_msg()
+    {
+        vector<Message *> buffer_not_sent;
+        for (Message *m : buffer_my_msg)
+        {
+            AppMsg *f_v1 = new AppMsg("flood_v1", m, 0);
+            buffer_flood_v1.push_back(f_v1);
+
+            AppMsg *f_v2 = new AppMsg("flood_v2", m, 0);
+            buffer_flood_v2.push_back(f_v2);
+
+            AppMsg *look_dest = new AppMsg("look_dest", m, 0);
+            buffer_look_dest.push_back(look_dest);
+
+            AppMsg *look_delegate = new AppMsg("delegate", m, 0);
+            buffer_look_delegate_term.push_back(look_delegate);
+            // Rajouter ici pour look for un terminal
+        }
+        buffer_my_msg.clear();
+    }
+
+    void flooding()
+    {
+        actualise_environ();
+        for (AppMsg *m : buffer_flood_v1)
+        {
+            for (Agent *conT : near_conT)
+            {
+                conT->receive(m);
+            }
+            for (Agent *unconT : near_unconT)
+            {
+                unconT->receive(m);
+            }
+            for (Agent *p : near_people)
+            {
+                p->receive(m);
+            }
+        }
+        for (AppMsg *m : buffer_flood_v2)
+        {
+            for (Agent *p : near_people)
+            {
+                p->receive(m);
+            }
+        }
+    }
+    void send_algo_msg()
+    {
+        actualise_environ(); // not necessary if flooding ;
+        // Look if dest is here
+        vector<AppMsg *> buffer_dest_aux;
+        for (AppMsg *m : buffer_look_dest)
+        {
+            bool sended = false;
+            for (Agent *p : near_people)
+            {
+                if (p->id == m->the_msg->dest)
+                {
+                    sended = p->receive(m);
+                }
+            }
+            if (!sended)
+            {
+                buffer_dest_aux.push_back(m);
+            }
+        }
+        buffer_look_dest.clear();
+        for (AppMsg *m : buffer_dest_aux)
+        {
+            buffer_look_dest.push_back(m);
+        }
+        // Look for terminal to delegate
+
+        for (AppMsg *m : buffer_look_delegate_term)
+        {
+            for (Agent *conT : near_conT)
+            {
+                conT->receive(m);
+            }
+            for (Agent *unconT : near_unconT)
+            {
+                unconT->receive(m);
+            }
+        }
+        buffer_look_delegate_term.clear();
+    }
+    void forward()
+    {
+        actualise_environ(); // not necessary if flooding
+        vector<AppMsg *> buffer_aux = buffer_forward;
+        buffer_forward.clear();
+        for (AppMsg *m : buffer_aux)
+        {
+            bool forwarded = false;
+            for (Agent *p : near_people)
+            {
+                if (p->id == m->the_msg->dest)
+                {
+                    forwarded = p->receive(m);
+                }
+            }
+            if (!forwarded)
+            {
+                for (Agent *conT : near_conT)
+                {
+                    if (conT->id != m->params[0])
+                    {
+                        forwarded = conT->receive(new AppMsg("delegate", m->the_msg, m->duplication));
                     }
                 }
-                if(not(forwarded) && not(get_terminals().empty()) && not(get_terminals().size() == 1 && ((get_terminals()[0])->get_id() == t))) {
-                    for (Agent* x : get_terminals()) {
-                        broadcast_msg("delegate," + a_msg + "," + dest , x) ;
-                    }
-                }
-                else{
-                    if (not(forwarded)) {
-                    for (Agent* x : get_peoples()) {
-                        auto k_aux = evaluate_traces(dest, parse_traces(infos), x->get_id()) ;
-                        if (k_aux > k) {
-                            broadcast_msg("forward," + a_msg + "," + to_string(k_aux) + "," + t + "," + infos , x) ;
-                            forwarded = true ;
-                        }
-                    }
-                    if (not(forwarded)) {
-                        msg_to_forward.push_back(param) ; 
-                    }
+                for (Agent *unconT : near_unconT)
+                {
+                    if (unconT->id != m->params[0])
+                    {
+                        forwarded = unconT->receive(new AppMsg("delegate", m->the_msg, m->duplication));
                     }
                 }
             }
-        }
+            if (!forwarded)
+            {
 
-        void process_msg() {
-            string delimiter = "," ;
-            for (string a_msg : get_msg()) {
-                string msg_type ;
-                vector<string> param ;
-                msg_type, param = parse_msg(a_msg, delimiter) ;
-                if (msg_type == "forward") {
-                    forward(param) ;
+                for (Agent *p : near_people)
+                {
+                    int score = evaluate_traces(m->the_msg->dest, parse_traces(m->params[1]), p->id);
+                    if (score > 0)
+                    {
+                        forwarded = p->receive(m);
+                    }
                 }
-                else {
-                    cout << "Error : deal with unknown message \n " ;
-                    exit(42) ;
-                }
-                               
+            }
+            if (!forwarded)
+            {
+                buffer_forward.push_back(m);
             }
         }
+    }
+    bool is_here(vector<AppMsg *> buff, AppMsg *m)
+    {
+        bool res = false;
+        for (AppMsg *msg : buff)
+        {
+            if (msg->equal(m))
+            {
+                res = true;
+            }
+        }
+        return res;
+    }
 
-        //****************************************************************
+    double
+    evaluate_traces(string j, vector<info> infos, string x)
+    {
+        // In flooding mod for now
+        return 1;
+    }
+    vector<info> parse_traces(string infos)
+    { // In flooding mod for now :
+        vector<info> res;
+        return res;
+    }
 
+    bool already_have_to_forward(vector<string> param)
+    {
+        bool res = false;
+        for (vector<string> p : msg_to_forward)
+        {
+            if (p == param)
+            {
+                res = true;
+            }
+        }
+        return res;
+    }
 
+    //****************************************************************
 
+    tuple<int, int, double> virtual get_accurate_path(double p)
+    {
+        int depart = path[step];
+        int arrivee = path[step + 1];
+        tuple<int, int, double> res(depart, arrivee, p);
+        return res;
+    }
 
-    //Calcul des voisin proches : 
-    bool near_to(pos autre, pos moi, double s_autre, double s_moi){
+    // Calcul des voisin proches :
+    bool near_to(pos autre, pos moi, double s_autre, double s_moi)
+    {
         int autre_depart = get<0>(autre);
         int autre_arrivee = get<1>(autre);
         double autre_dist_depart = get<2>(autre);
-        double autre_dist_arrivee = get<3>(autre) ;         
+        double autre_dist_arrivee = get<3>(autre);
         int moi_depart = get<0>(moi);
         int moi_arrivee = get<1>(moi);
         double moi_dist_depart = get<2>(moi);
-        double moi_dist_arrivee = get<3>(moi) ; 
-        // Case autre = people  (x1 = autre, x2 = moi) 
-        // 1 )    [1]---- x1 > ---------- < x2 --- [2] 
-        if(autre_depart == moi_arrivee && autre_arrivee == moi_depart) {
-            if(my_abs(autre_dist_arrivee - moi_dist_depart) <= s_autre + s_moi) {  return true ; }
-            else {return false ;}
+        double moi_dist_arrivee = get<3>(moi);
+        // Case autre = people  (x1 = autre, x2 = moi)
+        // 1 )    [1]---- x1 > ---------- < x2 --- [2]
+        if (autre_depart == moi_arrivee && autre_arrivee == moi_depart)
+        {
+            if (abs(autre_dist_arrivee - moi_dist_depart) <= s_autre + s_moi)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
-        // 2) [1] ---- x1> ---------- x2 >-------- [2] 
-        if (autre_depart == moi_depart && autre_arrivee == moi_arrivee) {
-            if (my_abs(moi_dist_depart - autre_dist_depart) <= s_autre + s_moi) { return true ; }
-            else {return false ;}
+        // 2) [1] ---- x1> ---------- x2 >-------- [2]
+        if (autre_depart == moi_depart && autre_arrivee == moi_arrivee)
+        {
+            if (abs(moi_dist_depart - autre_dist_depart) <= s_autre + s_moi)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
         // 3) [3] --- x2> ---- [2] ---- x1> ---- [1]
-        if (autre_arrivee == moi_depart && autre_depart != moi_arrivee) {
-            if (autre_dist_arrivee + moi_dist_depart < s_autre+s_moi) {return true ;}
-            else {return false;}
+        if (autre_arrivee == moi_depart && autre_depart != moi_arrivee)
+        {
+            if (autre_dist_arrivee + moi_dist_depart < s_autre + s_moi)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
         // 4) [3] ---- x2> ------ [2] ------ <x1 -------- [1]
-        if (autre_arrivee == moi_arrivee && autre_depart != moi_depart) {
-            if (autre_dist_arrivee + moi_dist_arrivee <= s_autre + s_moi) { return true ;}
-            else {return false ;}
+        if (autre_arrivee == moi_arrivee && autre_depart != moi_depart)
+        {
+            if (autre_dist_arrivee + moi_dist_arrivee <= s_autre + s_moi)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
         // 5) [3]------ <x2  -------- [2] --- x1> -------- [1]
-        if (autre_depart == moi_depart && autre_arrivee != moi_arrivee) {
-            if(autre_dist_depart + moi_dist_depart <= s_autre + s_moi) { return true ;}
-            else {return false ; }
+        if (autre_depart == moi_depart && autre_arrivee != moi_arrivee)
+        {
+            if (autre_dist_depart + moi_dist_depart <= s_autre + s_moi)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
         // 6) [3] ----------- <x2 ----- [2] ----<x1--------[1]
-        if(autre_depart == moi_arrivee && autre_arrivee != moi_depart) {
-            if(autre_dist_depart + moi_dist_arrivee <= s_autre + s_moi) {return true ; }
-            else {return false ; }
+        if (autre_depart == moi_arrivee && autre_arrivee != moi_depart)
+        {
+            if (autre_dist_depart + moi_dist_arrivee <= s_autre + s_moi)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
 
-
-        // Case terminals 
-        if (autre_depart == moi_arrivee){
-            if (moi_dist_arrivee <= s_autre + s_moi) {return true ;}
-            else{return false ; }
+        // Case terminals
+        if (autre_depart == moi_arrivee)
+        {
+            if (moi_dist_arrivee <= s_autre + s_moi)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
-        if (autre_depart == moi_depart){
-            if(moi_dist_depart <= s_autre + s_moi) {return true ;}
-            else {return false ;}
+        if (autre_depart == moi_depart)
+        {
+            if (moi_dist_depart <= s_autre + s_moi)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
-        return false ;
+        return false;
     }
-     
-       
-
 };
+
+#endif
