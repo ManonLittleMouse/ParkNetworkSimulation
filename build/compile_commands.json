@@ -1,0 +1,52 @@
+[
+{
+  "directory": "/home/manon/Documents/M1/Projet/Simulation/build/src",
+  "command": "/usr/bin/c++    -O3 -DNDEBUG   -o CMakeFiles/main.dir/main.cpp.o -c /home/manon/Documents/M1/Projet/Simulation/src/main.cpp",
+  "file": "/home/manon/Documents/M1/Projet/Simulation/src/main.cpp"
+},
+{
+  "directory": "/home/manon/Documents/M1/Projet/Simulation/build/src",
+  "command": "/usr/bin/c++    -O3 -DNDEBUG   -o CMakeFiles/main.dir/Agent.cpp.o -c /home/manon/Documents/M1/Projet/Simulation/src/Agent.cpp",
+  "file": "/home/manon/Documents/M1/Projet/Simulation/src/Agent.cpp"
+},
+{
+  "directory": "/home/manon/Documents/M1/Projet/Simulation/build/src",
+  "command": "/usr/bin/c++    -O3 -DNDEBUG   -o CMakeFiles/main.dir/ConnectedT.cpp.o -c /home/manon/Documents/M1/Projet/Simulation/src/ConnectedT.cpp",
+  "file": "/home/manon/Documents/M1/Projet/Simulation/src/ConnectedT.cpp"
+},
+{
+  "directory": "/home/manon/Documents/M1/Projet/Simulation/build/src",
+  "command": "/usr/bin/c++    -O3 -DNDEBUG   -o CMakeFiles/main.dir/UnconnectedT.cpp.o -c /home/manon/Documents/M1/Projet/Simulation/src/UnconnectedT.cpp",
+  "file": "/home/manon/Documents/M1/Projet/Simulation/src/UnconnectedT.cpp"
+},
+{
+  "directory": "/home/manon/Documents/M1/Projet/Simulation/build/src",
+  "command": "/usr/bin/c++    -O3 -DNDEBUG   -o CMakeFiles/main.dir/People.cpp.o -c /home/manon/Documents/M1/Projet/Simulation/src/People.cpp",
+  "file": "/home/manon/Documents/M1/Projet/Simulation/src/People.cpp"
+},
+{
+  "directory": "/home/manon/Documents/M1/Projet/Simulation/build/src",
+  "command": "/usr/bin/c++    -O3 -DNDEBUG   -o CMakeFiles/main.dir/Terminal.cpp.o -c /home/manon/Documents/M1/Projet/Simulation/src/Terminal.cpp",
+  "file": "/home/manon/Documents/M1/Projet/Simulation/src/Terminal.cpp"
+},
+{
+  "directory": "/home/manon/Documents/M1/Projet/Simulation/build/src",
+  "command": "/usr/bin/c++    -O3 -DNDEBUG   -o CMakeFiles/main.dir/Map.cpp.o -c /home/manon/Documents/M1/Projet/Simulation/src/Map.cpp",
+  "file": "/home/manon/Documents/M1/Projet/Simulation/src/Map.cpp"
+},
+{
+  "directory": "/home/manon/Documents/M1/Projet/Simulation/build/src",
+  "command": "/usr/bin/c++    -O3 -DNDEBUG   -o CMakeFiles/main.dir/World.cpp.o -c /home/manon/Documents/M1/Projet/Simulation/src/World.cpp",
+  "file": "/home/manon/Documents/M1/Projet/Simulation/src/World.cpp"
+},
+{
+  "directory": "/home/manon/Documents/M1/Projet/Simulation/build/src",
+  "command": "/usr/bin/c++    -O3 -DNDEBUG   -o CMakeFiles/main.dir/AppMsg.cpp.o -c /home/manon/Documents/M1/Projet/Simulation/src/AppMsg.cpp",
+  "file": "/home/manon/Documents/M1/Projet/Simulation/src/AppMsg.cpp"
+},
+{
+  "directory": "/home/manon/Documents/M1/Projet/Simulation/build/src",
+  "command": "/usr/bin/c++    -O3 -DNDEBUG   -o CMakeFiles/main.dir/Msg.cpp.o -c /home/manon/Documents/M1/Projet/Simulation/src/Msg.cpp",
+  "file": "/home/manon/Documents/M1/Projet/Simulation/src/Msg.cpp"
+}
+]

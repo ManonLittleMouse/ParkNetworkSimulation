@@ -1,0 +1,20 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/manon/Documents/M1/Projet/Simulation/src/Agent.cpp
+iostream
+-
+vector
+-
+
+/home/manon/Documents/M1/Projet/Simulation/src/main.cpp
+iostream
+-
+Agent.cpp
+/home/manon/Documents/M1/Projet/Simulation/src/Agent.cpp
+
