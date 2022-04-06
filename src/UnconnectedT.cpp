@@ -117,7 +117,7 @@ public:
             {
                 if (p->id == m->the_msg->dest)
                 {
-                    sended = p->receive(m);
+                    sended = p->receive(new AppMsg("broadcast", m->the_msg, m->duplication));
                 }
             }
             if (!sended)
@@ -126,12 +126,13 @@ public:
                 {
                     int score = compute_score(p, m->the_msg->dest);
                     int seuil = compute_score_seuil(m);
-                    if (score < seuil)
+                    if (score > seuil)
                     {
                         AppMsg *new_m = new AppMsg("forward", m->the_msg, m->duplication);
                         new_m->params.push_back(id);
                         new_m->params.push_back(compute_indications(p, m->the_msg->dest));
                         sended = p->receive(new_m);
+                        m->the_msg->dupli_algo++;
                     }
                 }
             }
@@ -148,6 +149,7 @@ public:
         {
             for (Agent *p : people_environ)
             {
+                m->the_msg->dupli_flood_v1++;
                 p->receive(m);
             }
         }

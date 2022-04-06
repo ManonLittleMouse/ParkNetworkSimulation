@@ -109,6 +109,7 @@ public:
         {
             cout << " \t\t\t\t\t\t --> Connected Terminal " << id << " receive ";
             m->print_AppMsg();
+            m->the_msg->dupli_algo++;
             buffer_delegate.push_back(m);
             return true;
         }
@@ -133,10 +134,12 @@ public:
         {
             for (Agent *p : people_environ)
             {
+                m->the_msg->dupli_flood_v1++;
                 p->receive(m);
             }
             for (Agent *conT : connected_terminal)
             {
+                m->the_msg->dupli_flood_v1++;
                 conT->receive(m);
             }
         }
@@ -152,13 +155,18 @@ public:
             info i = get_last_traces(inf);
             double date = get<0>(i);
             string recent_global_id = get<1>(i);
-            string recent_id = (get<1>(i)).erase(0);
-            Agent *recent_conT = id_to_conT(recent_global_id);
-            cout << "debug : " << recent_global_id << "\n";
+            string s_local_id = recent_global_id.substr(1, recent_global_id.size());
+            int recent_id = stoi(s_local_id);
             int how_old = old(date);
             AppMsg *new_m = new AppMsg("delegate_conT", m->the_msg, m->duplication);
-            cout << "oui1\n";
-            recent_conT->receive(new_m);
+            for (int i = -1; i < how_old; i++)
+            {
+                string g_id = "1" + to_string(((recent_id + i) % connected_terminal.size()) + 1);
+                Agent *recent_conT = id_to_conT(g_id);
+
+                recent_conT->receive(new_m);
+            }
+            m->the_msg->dupli_algo += how_old;
         }
     }
 
@@ -173,14 +181,14 @@ public:
             {
                 if (p->id == m->the_msg->dest)
                 {
-                    sended = p->receive(m);
+                    sended = p->receive(new AppMsg("broadcast", m->the_msg, m->duplication));
                 }
             }
             if (!sended)
             {
                 for (Agent *p : people_environ)
                 {
-                    cout << "Connected T " << id << "is computing score of " << p->id << "\n";
+                    // cout << "Connected T " << id << "is computing score of " << p->id << "\n";
                     int score = compute_score(p, m->the_msg->dest);
                     int seuil = compute_score_seuil(m);
                     if (score > seuil)
@@ -188,6 +196,7 @@ public:
                         AppMsg *new_m = new AppMsg("forward", m->the_msg, m->duplication);
                         new_m->params.push_back(id);
                         new_m->params.push_back(compute_indications(p, m->the_msg->dest));
+                        m->the_msg->dupli_algo++;
                         sended = p->receive(new_m);
                     }
                 }
@@ -239,17 +248,14 @@ public:
         //   TODO : ici les choix sont totalement arbitraires.
         if (dt / 60 >= 5) // 5h
         {
-            return ((connected_terminal.size() / 2) - 1);
+            return ((connected_terminal.size()) - 1);
         }
         if (dt / 60 >= 2)
         {
-            return (connected_terminal.size() / 3) - 1;
+            return (connected_terminal.size() / 0.75) - 1;
         }
-        if (dt / 60 >= 0.5)
-        {
-            return 1;
-        }
-        return 1;
+
+        return (connected_terminal.size()) - 1;
     }
 
     vector<info> traces_mutualise(string j)

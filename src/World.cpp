@@ -50,47 +50,13 @@ public:
      * STATISTIQUES *
      * **********************/
 
-    int nb_messages_received = 0;
     int nb_msg_received_look_dest = 0;
     int nb_msg_received_delegate = 0;
+    int nb_msg_received_delegate_conT = 0;
     int nb_msg_received_forward = 0;
     int nb_messages_received_flood = 0;
     int nb_messages_received_flood_v2 = 0;
 
-    void compute_statistiques()
-    {
-        for (People *p : the_people)
-        {
-            for (AppMsg *m : p->arrived_msg)
-            {
-                if (m->type_msg == "flood_v1")
-                {
-                    nb_messages_received_flood++;
-                }
-                else if (m->type_msg == "flood_v2")
-                {
-                    nb_messages_received_flood_v2++;
-                }
-                else if (m->type_msg == "look_dest")
-                {
-                    nb_msg_received_look_dest++;
-                }
-                else if (m->type_msg == "delegate" || m->type_msg == "delegate_conT")
-                {
-                    nb_msg_received_delegate++;
-                }
-                else if (m->type_msg == "forward")
-                {
-                    nb_msg_received_forward++;
-                }
-                else
-                {
-                    cout << "Autre type : " << m->type_msg << "\n";
-                    exit(42);
-                }
-            }
-        }
-    }
     /********************
      * INITIALISATION ***
      ********************/
@@ -244,23 +210,25 @@ public:
         // For Connected_terminals :
         for (ConnectedT *conT : connected_term)
         {
-            conT->flooding();
+
             conT->delegate_conT();
             conT->delegate();
+            conT->flooding();
         }
         // For Unconnected_terminals :
         for (UnconnectedT *unconT : uncon_term)
         {
-            unconT->flooding();
+
             unconT->delegate();
+            unconT->flooding();
         }
         // For Peopple (only flooding)
         for (People *p : the_people)
         {
             p->send_msg();
-            p->flooding(); // Including v1 et v2
             p->send_algo_msg();
             p->forward();
+            p->flooding(); // Including v1 et v2
         }
     }
 
@@ -300,6 +268,88 @@ public:
         nb_messages_send++;
     }
 
+    int nb_messages_received_algo = 0;
+
+    void compute_statistiques()
+    {
+        for (People *p : the_people)
+        {
+            for (AppMsg *m : p->arrived_msg)
+            {
+                if (m->type_msg == "flood_v1")
+                {
+                    nb_messages_received_flood++;
+                }
+                else if (m->type_msg == "flood_v2")
+                {
+                    nb_messages_received_flood_v2++;
+                }
+                else if (m->type_msg == "broadcast")
+                {
+                    nb_messages_received_algo++;
+                }
+                else if (m->type_msg == "look_dest")
+                {
+                    nb_msg_received_look_dest++;
+                }
+                else if (m->type_msg == "delegate")
+                {
+                    nb_msg_received_delegate++;
+                }
+                else if (m->type_msg == "delegate_conT")
+                {
+                    nb_msg_received_delegate_conT++;
+                }
+                else if (m->type_msg == "forward")
+                {
+                    nb_msg_received_forward++;
+                }
+                else
+                {
+                    cout << "Autre type : " << m->type_msg << "\n";
+                    exit(42);
+                }
+            }
+        }
+    }
+
+    int dupli_f1 = 0;
+    int dupli_f2 = 0;
+    int dupli_algo = 0;
+
+    void compute_duplication()
+    {
+        vector<Message *> res;
+        for (People *p : the_people)
+        {
+            for (AppMsg *m : p->arrived_msg)
+            {
+                if (!is_here_world(res, m->the_msg))
+                {
+                    res.push_back(m->the_msg);
+                }
+            }
+        }
+        for (Message *m : res)
+        {
+            dupli_f1 += m->dupli_flood_v1;
+            dupli_f2 += m->dupli_flood_v2;
+            dupli_algo += m->dupli_algo;
+        }
+    }
+
+    bool is_here_world(vector<Message *> buff, Message *m)
+    {
+        bool res = false;
+        for (Message *msg : buff)
+        {
+            if (msg->a_msg == m->a_msg)
+            {
+                res = true;
+            }
+        }
+        return res;
+    }
     //***********************Prettyprint *******************
 
     void print_situation()

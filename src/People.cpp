@@ -164,7 +164,7 @@ public:
             {
                 // Message est arrive à destination
                 arrived_msg.push_back(m);
-                cout << "\t\t\t\t\t\t\t\t\t\t\t ----> THE MSG " << m->the_msg->id << " ARRIVED AT DESTINATION ! \n";
+                cout << "\t\t\t\t\t\t\t\t\t\t\t ----> THE MSG " << m->the_msg->id << " ARRIVED AT DESTINATION BY " << m->type_msg << " ! \n";
                 return true;
             }
         }
@@ -197,7 +197,6 @@ public:
 
     void send_msg()
     {
-        vector<Message *> buffer_not_sent;
         for (Message *m : buffer_my_msg)
         {
             AppMsg *f_v1 = new AppMsg("flood_v1", m, 0);
@@ -223,14 +222,17 @@ public:
         {
             for (Agent *conT : near_conT)
             {
+                m->the_msg->dupli_flood_v1++;
                 conT->receive(m);
             }
             for (Agent *unconT : near_unconT)
             {
+                m->the_msg->dupli_flood_v1++;
                 unconT->receive(m);
             }
             for (Agent *p : near_people)
             {
+                m->the_msg->dupli_flood_v1++;
                 p->receive(m);
             }
         }
@@ -238,14 +240,15 @@ public:
         {
             for (Agent *p : near_people)
             {
+                m->the_msg->dupli_flood_v2++;
                 p->receive(m);
             }
         }
     }
     void send_algo_msg()
     {
-        actualise_environ(); // not necessary if flooding ;
-        // Look if dest is here
+        // actualise_environ(); // not necessary if flooding ;
+        //  Look if dest is here
         vector<AppMsg *> buffer_dest_aux;
         for (AppMsg *m : buffer_look_dest)
         {
@@ -254,7 +257,7 @@ public:
             {
                 if (p->id == m->the_msg->dest)
                 {
-                    sended = p->receive(m);
+                    sended = p->receive(new AppMsg("broadcast", m->the_msg, m->duplication));
                 }
             }
             if (!sended)
@@ -268,23 +271,30 @@ public:
             buffer_look_dest.push_back(m);
         }
         // Look for terminal to delegate
-
-        for (AppMsg *m : buffer_look_delegate_term)
+        vector<AppMsg *> buffer_aux = buffer_look_delegate_term;
+        buffer_look_delegate_term.clear();
+        for (AppMsg *m : buffer_aux)
         {
+            bool sended = false;
             for (Agent *conT : near_conT)
             {
-                conT->receive(m);
+                m->the_msg->dupli_algo++;
+                sended = sended || conT->receive(m);
             }
             for (Agent *unconT : near_unconT)
             {
-                unconT->receive(m);
+                m->the_msg->dupli_algo++;
+                sended = sended || unconT->receive(m);
+            }
+            if (!sended)
+            {
+                buffer_look_delegate_term.push_back(m);
             }
         }
-        buffer_look_delegate_term.clear();
     }
     void forward()
     {
-        actualise_environ(); // not necessary if flooding
+        // actualise_environ(); // not necessary if flooding
         vector<AppMsg *> buffer_aux = buffer_forward;
         buffer_forward.clear();
         for (AppMsg *m : buffer_aux)
@@ -294,7 +304,8 @@ public:
             {
                 if (p->id == m->the_msg->dest)
                 {
-                    forwarded = p->receive(m);
+                    p->receive(new AppMsg("broadcast", m->the_msg, m->duplication));
+                    forwarded = true;
                 }
             }
             if (!forwarded)
@@ -303,6 +314,7 @@ public:
                 {
                     if (conT->id != m->params[0])
                     {
+                        m->the_msg->dupli_algo++;
                         forwarded = conT->receive(new AppMsg("delegate", m->the_msg, m->duplication));
                     }
                 }
@@ -310,6 +322,7 @@ public:
                 {
                     if (unconT->id != m->params[0])
                     {
+                        m->the_msg->dupli_algo++;
                         forwarded = unconT->receive(new AppMsg("delegate", m->the_msg, m->duplication));
                     }
                 }
@@ -322,6 +335,7 @@ public:
                     int score = evaluate_traces(m->the_msg->dest, parse_traces(m->params[1]), p->id);
                     if (score > 0)
                     {
+                        m->the_msg->dupli_algo++;
                         forwarded = p->receive(m);
                     }
                 }
@@ -354,19 +368,6 @@ public:
     vector<info> parse_traces(string infos)
     { // In flooding mod for now :
         vector<info> res;
-        return res;
-    }
-
-    bool already_have_to_forward(vector<string> param)
-    {
-        bool res = false;
-        for (vector<string> p : msg_to_forward)
-        {
-            if (p == param)
-            {
-                res = true;
-            }
-        }
         return res;
     }
 

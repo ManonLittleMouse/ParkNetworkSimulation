@@ -22,6 +22,11 @@ public:
     {
         cout << "- Message : " << to_string(id) << " - Sender : " << sender << " - Destination : " << dest << " ";
     }
+
+    // statistiques variables :
+    int dupli_flood_v1 = 0;
+    int dupli_flood_v2 = 0;
+    int dupli_algo = 0;
 };
 
 #endif
